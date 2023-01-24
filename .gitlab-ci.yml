@@ -1,0 +1,15 @@
+image: openjdk-17.0.2_1.8.1_2.13.10
+
+stages:
+  - build
+  - test
+
+build-job:
+  stage: build
+  script:
+    - sbt compile
+
+unit-test-job:
+  stage: test
+  script:
+    - sbt test
