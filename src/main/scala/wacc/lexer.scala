@@ -41,10 +41,10 @@ object lexer {
   )
   private val lexer = new Lexer(desc)
 
-  val VARIABLE: Parsley[String] = lexer.lexeme.names.identifier
-  val INTEGER: Parsley[BigInt] = lexer.lexeme.numeric.unsigned.decimal
-  val CHAR: Parsley[Char] = lexer.lexeme.text.character.latin1
-  val STRING: Parsley[String] = lexer.lexeme.text.string.ascii
+  val IDF: Parsley[String] = lexer.lexeme.names.identifier
+  val INT: Parsley[Int] = lexer.lexeme.numeric.unsigned.decimal32 // int32, 32-bit signed integer
+  val CHR: Parsley[Char] = lexer.lexeme.text.character.ascii
+  val STR: Parsley[String] = lexer.lexeme.text.string.ascii
 
   val implicits: ImplicitSymbol = lexer.lexeme.symbol.implicits
 
