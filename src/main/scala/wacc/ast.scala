@@ -1,7 +1,7 @@
 package wacc
 
 import parsley.Parsley
-import parsley.implicits.zipped.Zipped2
+import parsley.implicits.zipped.{Zipped2, Zipped3}
 import parsley.position.pos
 
 object ast {
@@ -60,6 +60,8 @@ object ast {
 
   case class Skip()(val pos: (Int, Int)) extends Stat
 
+  object Skip extends ParserBridgePos0[Skip]
+
   case class AssignNew(t: Type, ident: Ident, rvalue: Rvalue)(val pos: (Int, Int)) extends Stat
 
   case class Assign(lvalue: Lvalue, rvalue: Rvalue)(val pos: (Int, Int)) extends Stat
@@ -68,20 +70,45 @@ object ast {
 
   case class Free(expr: Expr)(val pos: (Int, Int)) extends Stat
 
+  object Free extends ParserBridgePos1[Expr, Free]
+
   case class Return(expr: Expr)(val pos: (Int, Int)) extends Stat
+
+  object Return extends ParserBridgePos1[Expr, Return]
 
   case class Exit(expr: Expr)(val pos: (Int, Int)) extends Stat
 
+  object Exit extends ParserBridgePos1[Expr, Exit]
+
   case class Print(expr: Expr)(val pos: (Int, Int)) extends Stat
 
+  object Print extends ParserBridgePos1[Expr, Print]
+
   case class Println(expr: Expr)(val pos: (Int, Int)) extends Stat
+
+  object Println extends ParserBridgePos1[Expr, Println]
 
   // Stat can call another Stat, so we represent it as a list of Stat
   case class If(cond: Expr, trueStat: List[Stat], falseStat: List[Stat])(val pos: (Int, Int)) extends Stat
 
+  object If {
+    def apply(cond: Parsley[Expr], trueStat: Parsley[List[Stat]], falseStat: Parsley[List[Stat]]): Parsley[If] =
+      pos <**> (cond, trueStat, falseStat).zipped(If(_, _, _) _)
+  }
+
   case class While(cond: Expr, stat: List[Stat])(val pos: (Int, Int)) extends Stat
 
+  object While {
+    def apply(cond: Parsley[Expr], stat: Parsley[List[Stat]]): Parsley[While] =
+      pos <**> (cond, stat).zipped(While(_, _) _)
+  }
+
   case class BeginStat(stat: List[Stat])(val pos: (Int, Int)) extends Stat
+
+  object BeginStat {
+    def apply(stat: Parsley[List[Stat]]): Parsley[BeginStat] =
+      pos <**> stat.map(BeginStat(_) _)
+  }
 
   // <LVALUE>
   sealed trait Lvalue extends ASTNode
