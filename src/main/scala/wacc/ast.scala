@@ -1,7 +1,7 @@
 package wacc
 
 import parsley.Parsley
-import parsley.implicits.zipped.{Zipped2, Zipped3}
+import parsley.implicits.zipped.{Zipped2, Zipped3, Zipped4}
 import parsley.position.pos
 
 object ast {
@@ -41,19 +41,29 @@ object ast {
   }
 
   // <PROGRAM>
-  sealed trait Program extends ASTNode
-
   // Since Stat; Stat is valid, we represent it as a list of Stat
-  case class BeginProgram(functions: List[Func], stat: List[Stat])(val pos: (Int, Int)) extends Program
+  case class Program(functions: List[Func], stat: List[Stat])(val pos: (Int, Int)) extends ASTNode
+  object Program {
+    def apply(functions: Parsley[List[Func]], stat: Parsley[List[Stat]]): Parsley[Program] =
+      pos <**> (functions, stat).zipped(Program(_, _) _)
+  }
 
   // <FUNC>
 
   case class Func(t: Type, ident: Ident, vars: List[Param], stat: List[Stat])(val pos: (Int, Int)) extends ASTNode
+  object Func {
+    def apply(t: Parsley[Type], ident: Parsley[Ident], vars: Parsley[List[Param]], stat: Parsley[List[Stat]]): Parsley[Func] =
+      pos <**> (t, ident, vars, stat).zipped(Func(_, _, _, _) _)
+  }
 
   // <PARAM-LIST> omitted (only 1 occurrence)
 
   // <PARAM>
   case class Param(t: Type, ident: Ident)(val pos: (Int, Int)) extends ASTNode
+  object Param {
+    def apply(t: Parsley[Type], ident: Parsley[Ident]): Parsley[Param] =
+      pos <**> (t, ident).zipped(Param(_, _) _)
+  }
 
   // <STAT>
   sealed trait Stat extends ASTNode
@@ -63,8 +73,16 @@ object ast {
   object Skip extends ParserBridgePos0[Skip]
 
   case class AssignNew(t: Type, ident: Ident, rvalue: Rvalue)(val pos: (Int, Int)) extends Stat
+  object AssignNew {
+    def apply(t: Parsley[Type], ident: Parsley[Ident], rvalue: Parsley[Rvalue]): Parsley[AssignNew] =
+      pos <**> (t, ident, rvalue).zipped(AssignNew(_, _, _) _)
+  }
 
   case class Assign(lvalue: Lvalue, rvalue: Rvalue)(val pos: (Int, Int)) extends Stat
+  object Assign {
+    def apply(lvalue: Parsley[Lvalue], rvalue: Parsley[Rvalue]): Parsley[Assign] =
+      pos <**> (lvalue, rvalue).zipped(Assign(_, _) _)
+  }
 
   case class Read(lvalue: Lvalue)(val pos: (Int, Int)) extends Stat
 
@@ -153,12 +171,16 @@ object ast {
   sealed trait BaseType extends Type
 
   case class IntType()(val pos: (Int, Int)) extends BaseType
+  object IntType extends ParserBridgePos0[IntType]
 
   case class BoolType()(val pos: (Int, Int)) extends BaseType
+  object BoolType extends ParserBridgePos0[BoolType]
 
   case class CharType()(val pos: (Int, Int)) extends BaseType
+  object CharType extends ParserBridgePos0[CharType]
 
   case class StringType()(val pos: (Int, Int)) extends BaseType
+  object StringType extends ParserBridgePos0[StringType]
 
   // <ARRAY-TYPE>
   case class ArrayType(t: Type)(val pos: (Int, Int)) extends Type
