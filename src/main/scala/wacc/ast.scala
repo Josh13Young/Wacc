@@ -43,6 +43,7 @@ object ast {
   // <PROGRAM>
   // Since Stat; Stat is valid, we represent it as a list of Stat
   case class Program(functions: List[Func], stat: List[Stat])(val pos: (Int, Int)) extends ASTNode
+
   object Program {
     def apply(functions: Parsley[List[Func]], stat: Parsley[List[Stat]]): Parsley[Program] =
       pos <**> (functions, stat).zipped(Program(_, _) _)
@@ -51,6 +52,7 @@ object ast {
   // <FUNC>
 
   case class Func(t: Type, ident: Ident, vars: List[Param], stat: List[Stat])(val pos: (Int, Int)) extends ASTNode
+
   object Func {
     def apply(t: Parsley[Type], ident: Parsley[Ident], vars: Parsley[List[Param]], stat: Parsley[List[Stat]]): Parsley[Func] =
       pos <**> (t, ident, vars, stat).zipped(Func(_, _, _, _) _)
@@ -60,6 +62,7 @@ object ast {
 
   // <PARAM>
   case class Param(t: Type, ident: Ident)(val pos: (Int, Int)) extends ASTNode
+
   object Param {
     def apply(t: Parsley[Type], ident: Parsley[Ident]): Parsley[Param] =
       pos <**> (t, ident).zipped(Param(_, _) _)
@@ -73,18 +76,25 @@ object ast {
   object Skip extends ParserBridgePos0[Skip]
 
   case class AssignNew(t: Type, ident: Ident, rvalue: Rvalue)(val pos: (Int, Int)) extends Stat
+
   object AssignNew {
     def apply(t: Parsley[Type], ident: Parsley[Ident], rvalue: Parsley[Rvalue]): Parsley[AssignNew] =
       pos <**> (t, ident, rvalue).zipped(AssignNew(_, _, _) _)
   }
 
   case class Assign(lvalue: Lvalue, rvalue: Rvalue)(val pos: (Int, Int)) extends Stat
+
   object Assign {
     def apply(lvalue: Parsley[Lvalue], rvalue: Parsley[Rvalue]): Parsley[Assign] =
       pos <**> (lvalue, rvalue).zipped(Assign(_, _) _)
   }
 
   case class Read(lvalue: Lvalue)(val pos: (Int, Int)) extends Stat
+
+  object Read {
+    def apply(lvalue: Parsley[Lvalue]): Parsley[Read] =
+      pos <**> lvalue.map(Read(_) _)
+  }
 
   case class Free(expr: Expr)(val pos: (Int, Int)) extends Stat
 
@@ -150,9 +160,19 @@ object ast {
   // <PAIR-ELEM>
   sealed trait PairElem extends Lvalue with Rvalue
 
-  case class Fst(lvalue: Lvalue)(val pos: (Int, Int)) extends PairElem
+  case class FstElem(lvalue: Lvalue)(val pos: (Int, Int)) extends PairElem
 
-  case class Snd(lvalue: Lvalue)(val pos: (Int, Int)) extends PairElem
+  object FstElem {
+    def apply(lvalue: Parsley[Lvalue]): Parsley[FstElem] =
+      pos <**> lvalue.map(FstElem(_) _)
+  }
+
+  case class SndElem(lvalue: Lvalue)(val pos: (Int, Int)) extends PairElem
+
+  object SndElem {
+    def apply(lvalue: Parsley[Lvalue]): Parsley[SndElem] =
+      pos <**> lvalue.map(SndElem(_) _)
+  }
 
   // <RVALUE>
   sealed trait Rvalue extends ASTNode
@@ -160,9 +180,24 @@ object ast {
   // <ARRAY-LITER>
   case class ArrayLiter(exprList: List[Expr])(val pos: (Int, Int)) extends Rvalue
 
+  object ArrayLiter {
+    def apply(exprList: Parsley[List[Expr]]): Parsley[ArrayLiter] =
+      pos <**> exprList.map(ArrayLiter(_) _)
+  }
+
   case class NewPair(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends Rvalue
 
+  object NewPair {
+    def apply(expr1: Parsley[Expr], expr2: Parsley[Expr]): Parsley[NewPair] =
+      pos <**> (expr1, expr2).zipped(NewPair(_, _) _)
+  }
+
   case class Call(ident: Ident, argList: List[Expr])(val pos: (Int, Int)) extends Rvalue // args-list only appears once
+
+  object Call {
+    def apply(ident: Parsley[Ident], argList: Parsley[List[Expr]]): Parsley[Call] =
+      pos <**> (ident, argList).zipped(Call(_, _) _)
+  }
 
   // <TYPE>
   sealed trait Type extends ASTNode
@@ -171,25 +206,37 @@ object ast {
   sealed trait BaseType extends Type
 
   case class IntType()(val pos: (Int, Int)) extends BaseType
+
   object IntType extends ParserBridgePos0[IntType]
 
   case class BoolType()(val pos: (Int, Int)) extends BaseType
+
   object BoolType extends ParserBridgePos0[BoolType]
 
   case class CharType()(val pos: (Int, Int)) extends BaseType
+
   object CharType extends ParserBridgePos0[CharType]
 
   case class StringType()(val pos: (Int, Int)) extends BaseType
+
   object StringType extends ParserBridgePos0[StringType]
 
   // <ARRAY-TYPE>
   case class ArrayType(t: Type)(val pos: (Int, Int)) extends Type
 
+  object ArrayType extends ParserBridgePos1[Type, ArrayType]
+
   // <PAIR-TYPE>
-  case class PairType(t1: PairElemType, t2: PairElemType)(val pos: (Int, Int)) extends Type
+  case class PairType(t1: Type, t2: Type)(val pos: (Int, Int)) extends Type
 
-  case class PairElemType(t: Type)(val pos: (Int, Int)) extends Type // Not too sure about this
+  object PairType {
+    def apply(t1: Parsley[Type], t2: Parsley[Type]): Parsley[PairType] =
+      pos <**> (t1, t2).zipped(PairType(_, _) _)
+  }
 
+  case class NestedPairType()(val pos: (Int, Int)) extends Type
+
+  object NestedPairType extends ParserBridgePos0[NestedPairType]
 
   // <EXPR>
   sealed trait Expr extends Rvalue
