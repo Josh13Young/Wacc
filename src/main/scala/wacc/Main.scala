@@ -1,29 +1,16 @@
 package wacc
 
-import parsley.{Parsley, Success, Failure}
-import parsley.character.digit
-import parsley.expr.chain
-import parsley.implicits.character.charLift
+import parsley.{Failure, Success}
 
 object Main {
-    def main(args: Array[String]): Unit = {
-        println("Hello WACC_32!")
-
-        lazy val integer = digit.foldLeft1[BigInt](0)((n, d) => n * 10 + d.asDigit)
-
-        val add = (x: BigInt, y: BigInt) => x + y
-        val sub = (x: BigInt, y: BigInt) => x - y
-
-        lazy val expr: Parsley[BigInt] =
-            chain.left1[BigInt](
-                ('(' ~> expr <~ ')') <|> integer,
-                ('+' #> add) <|> ('-' #> sub)
-            )
-
-        expr.parse(args.head) match {
-            case Success(x) => println(s"${args.head} = $x")
-            case Failure(msg) => println(msg)
-        }
+  def main(args: Array[String]): Unit = {
+    val source = scala.io.Source.fromFile(args.head)
+    val input = try source.getLines().toList.mkString("\n") finally source.close()
+    parser.parser.parse(input) match {
+      case Success(x) => println(s"$input = $x")
+      case Failure(msg) =>
+        println(msg)
+        sys.exit(100)
     }
+  }
 }
-

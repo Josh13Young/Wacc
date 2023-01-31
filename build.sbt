@@ -16,8 +16,9 @@ lazy val root = (project in file(".")).
     scalaVersion := "2.13.10",
     sbtAssemblySettings,
 
-    libraryDependencies += "com.github.j-mie6" %% "parsley" % "4.2.1",
+    libraryDependencies += "com.github.j-mie6" %% "parsley" % "4.2.3",
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.15" % Test,
+    sbtAssemblySettings,
 
     // Some handy scala compiler flags
     scalacOptions ++= Seq(
