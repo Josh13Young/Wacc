@@ -8,7 +8,9 @@ object Main {
     val input = try source.getLines().toList.mkString("\n") finally source.close()
     parser.parser.parse(input) match {
       case Success(x) => println(s"$input = $x")
-      case Failure(msg) => println(msg)
+      case Failure(msg) =>
+        println(msg)
+        sys.exit(100)
     }
   }
 }
