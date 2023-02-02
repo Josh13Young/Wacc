@@ -3,6 +3,7 @@ package wacc
 import parsley.Parsley
 import parsley.implicits.zipped.{Zipped2, Zipped3, Zipped4}
 import parsley.position.pos
+import wacc.STType._
 
 object ast {
 
@@ -238,7 +239,30 @@ object ast {
   sealed trait Lvalue extends ASTNode
 
   // <IDENT>
-  case class Ident(name: String)(val pos: (Int, Int)) extends Lvalue with Expr
+  case class Ident(name: String)(val pos: (Int, Int)) extends Lvalue with Expr {
+    def check(st: SymbolTable): Boolean = {
+      println("Checking ident: " + name)
+      val query = st.lookupAll(name)
+      if (query.isEmpty) {
+        println("Error: " + name + " is not declared")
+        false
+      } else {
+        println("Ident " + name + " is declared")
+        true
+      }
+    }
+
+    override def getType(st: SymbolTable): TypeST = {
+      val query = st.lookupAll(name)
+      if (query.isEmpty) {
+        println("Error: " + name + " is not declared")
+        null
+      } else {
+        println("Ident " + name + " is declared")
+        query.head._1
+      }
+    }
+  }
 
   object Ident {
     def apply(name: Parsley[String]): Parsley[Ident] =
@@ -246,7 +270,36 @@ object ast {
   }
 
   // <ARRAY-ELEM>
-  case class ArrayElem(ident: Ident, exprList: List[Expr])(val pos: (Int, Int)) extends Lvalue with Expr
+  case class ArrayElem(ident: Ident, exprList: List[Expr])(val pos: (Int, Int)) extends Lvalue with Expr {
+    override def check(st: SymbolTable): Boolean = {
+      var result = true
+      println("Checking array elem: " + ident)
+      ident.check(st)
+      for (expr <- exprList) {
+        if (expr.getType(st) != IntST()) {
+          println("Error: array index must be of type int")
+          result = false
+        }
+        expr.check(st)
+      }
+      result
+    }
+
+    override def getType(st: SymbolTable): TypeST = {
+      println("Getting type of array elem: " + ident)
+      var identType = ident.getType(st)
+      println("Ident type: " + identType)
+      for (i <- 1 to exprList.length) {
+        identType match {
+          case ArrayST(t) => identType = t
+          case _ =>
+            println("Error: " + ident + " is not an array")
+            identType = null
+        }
+      }
+      identType
+    }
+  }
 
   object ArrayElem {
     def apply(ident: Parsley[Ident], exprList: Parsley[List[Expr]]): Parsley[ArrayElem] =
@@ -296,102 +349,176 @@ object ast {
   }
 
   // <TYPE>
-  sealed trait Type extends ASTNode
+  sealed trait Type extends ASTNode {
+    def check(st: SymbolTable): Boolean
+    def getType(st: SymbolTable): TypeST
+  }
 
   // <BASE-TYPE>
   sealed trait BaseType extends Type
 
-  case class IntType()(val pos: (Int, Int)) extends BaseType
+  case class IntType()(val pos: (Int, Int)) extends BaseType {
+    override def check(st: SymbolTable): Boolean = true
+
+    override def getType(st: SymbolTable): TypeST = IntST()
+  }
 
   object IntType extends ParserBridgePos0[IntType]
 
-  case class BoolType()(val pos: (Int, Int)) extends BaseType
+  case class BoolType()(val pos: (Int, Int)) extends BaseType {
+    override def check(st: SymbolTable): Boolean = true
+    override def getType(st: SymbolTable): TypeST = BoolST()
+  }
 
   object BoolType extends ParserBridgePos0[BoolType]
 
-  case class CharType()(val pos: (Int, Int)) extends BaseType
+  case class CharType()(val pos: (Int, Int)) extends BaseType {
+    override def check(st: SymbolTable): Boolean = true
+    override def getType(st: SymbolTable): TypeST = CharST()
+  }
 
   object CharType extends ParserBridgePos0[CharType]
 
-  case class StringType()(val pos: (Int, Int)) extends BaseType
+  case class StringType()(val pos: (Int, Int)) extends BaseType {
+    override def check(st: SymbolTable): Boolean = true
+    override def getType(st: SymbolTable): TypeST = StringST()
+  }
 
   object StringType extends ParserBridgePos0[StringType]
 
   // <ARRAY-TYPE>
-  case class ArrayType(t: Type)(val pos: (Int, Int)) extends Type
+  case class ArrayType(t: Type)(val pos: (Int, Int)) extends Type {
+    override def check(st: SymbolTable): Boolean = true
+    override def getType(st: SymbolTable): TypeST = ArrayST(t.getType(st))
+  }
 
   object ArrayType extends ParserBridgePos1[Type, ArrayType]
 
   // <PAIR-TYPE>
-  case class PairType(t1: Type, t2: Type)(val pos: (Int, Int)) extends Type
+  case class PairType(t1: Type, t2: Type)(val pos: (Int, Int)) extends Type {
+    override def check(st: SymbolTable): Boolean = true
+    override def getType(st: SymbolTable): TypeST = PairST(t1.getType(st), t2.getType(st))
+  }
 
   object PairType {
     def apply(t1: Parsley[Type], t2: Parsley[Type]): Parsley[PairType] =
       pos <**> (t1, t2).zipped(PairType(_, _) _)
   }
 
-  case class NestedPairType()(val pos: (Int, Int)) extends Type
+  case class NestedPairType()(val pos: (Int, Int)) extends Type {
+    override def check(st: SymbolTable): Boolean = true
+    override def getType(st: SymbolTable): TypeST = PairST(AnyST(), AnyST())
+  }
 
   object NestedPairType extends ParserBridgePos0[NestedPairType]
 
   // <EXPR>
-  sealed trait Expr extends Rvalue
+  sealed trait Expr extends Rvalue {
+    def check(st: SymbolTable): Boolean
+    def getType(st: SymbolTable): TypeST
+  }
 
-  case class IntLiter(value: Int)(val pos: (Int, Int)) extends Expr
+  case class IntLiter(value: Int)(val pos: (Int, Int)) extends Expr {
+    def check(st: SymbolTable): Boolean = true
+    def getType(st: SymbolTable): TypeST = IntST()
+  }
 
   object IntLiter {
     def apply(value: Parsley[Int]): Parsley[IntLiter] =
       pos <**> value.map(IntLiter(_) _)
   }
 
-  case class BoolLiter(value: Boolean)(val pos: (Int, Int)) extends Expr
+  case class BoolLiter(value: Boolean)(val pos: (Int, Int)) extends Expr {
+    def check(st: SymbolTable): Boolean = true
+    def getType(st: SymbolTable): TypeST = BoolST()
+  }
 
   object BoolLiter {
     def apply(value: Parsley[Boolean]): Parsley[BoolLiter] =
       pos <**> value.map(BoolLiter(_) _)
   }
 
-  case class CharLiter(value: Char)(val pos: (Int, Int)) extends Expr
+  case class CharLiter(value: Char)(val pos: (Int, Int)) extends Expr {
+    def check(st: SymbolTable): Boolean = true
+    def getType(st: SymbolTable): TypeST = CharST()
+  }
 
   object CharLiter {
     def apply(value: Parsley[Char]): Parsley[CharLiter] =
       pos <**> value.map(CharLiter(_) _)
   }
 
-  case class StrLiter(value: String)(val pos: (Int, Int)) extends Expr
+  case class StrLiter(value: String)(val pos: (Int, Int)) extends Expr {
+    def check(st: SymbolTable): Boolean = true
+    def getType(st: SymbolTable): TypeST = StringST()
+  }
 
   object StrLiter {
     def apply(value: Parsley[String]): Parsley[StrLiter] =
       pos <**> value.map(StrLiter(_) _)
   }
 
-  case class PairLiter()(val pos: (Int, Int)) extends Expr
+  case class PairLiter()(val pos: (Int, Int)) extends Expr {
+    def check(st: SymbolTable): Boolean = true
+    def getType(st: SymbolTable): TypeST = PairST(AnyST(), AnyST())
+  }
 
   object PairLiter extends ParserBridgePos0[PairLiter]
 
   // <UNARY-OP>
   sealed trait UnaryOp extends Expr
 
-  case class Not(expr: Expr)(val pos: (Int, Int)) extends UnaryOp
+  case class Not(expr: Expr)(val pos: (Int, Int)) extends UnaryOp {
+    def check(st: SymbolTable): Boolean = {
+      println("Checking Not")
+      expr.getType(st) == BoolST()
+    }
+    def getType(st: SymbolTable): TypeST = BoolST()
+  }
 
   object Not extends ParserBridgePos1[Expr, Not]
 
-  case class Neg(expr: Expr)(val pos: (Int, Int)) extends UnaryOp
+  case class Neg(expr: Expr)(val pos: (Int, Int)) extends UnaryOp {
+    def check(st: SymbolTable): Boolean = {
+      println("Checking Neg")
+      expr.getType(st) == IntST()
+    }
+    def getType(st: SymbolTable): TypeST = IntST()
+  }
 
   object Neg extends ParserBridgePos1[Expr, Neg]
 
 
-  case class Len(expr: Expr)(val pos: (Int, Int)) extends UnaryOp
+  case class Len(expr: Expr)(val pos: (Int, Int)) extends UnaryOp {
+    def check(st: SymbolTable): Boolean = {
+      println("Checking Len")
+      // TODO
+      true
+    }
+    def getType(st: SymbolTable): TypeST = IntST()
+  }
 
   object Len extends ParserBridgePos1[Expr, Len]
 
 
-  case class Ord(expr: Expr)(val pos: (Int, Int)) extends UnaryOp
+  case class Ord(expr: Expr)(val pos: (Int, Int)) extends UnaryOp {
+    def check(st: SymbolTable): Boolean = {
+      println("Checking Ord")
+      expr.getType(st) == CharST()
+    }
+    def getType(st: SymbolTable): TypeST = IntST()
+  }
 
   object Ord extends ParserBridgePos1[Expr, Ord]
 
 
-  case class Chr(expr: Expr)(val pos: (Int, Int)) extends UnaryOp
+  case class Chr(expr: Expr)(val pos: (Int, Int)) extends UnaryOp {
+    def check(st: SymbolTable): Boolean = {
+      println("Checking Chr")
+      expr.getType(st) == IntST()
+    }
+    def getType(st: SymbolTable): TypeST = CharST()
+  }
 
   object Chr extends ParserBridgePos1[Expr, Chr]
 
@@ -399,55 +526,137 @@ object ast {
   // <BINARY-OP>
   sealed trait BinaryOp extends Expr
 
-  case class Mul(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp
+  case class Mul(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
+    def check(st: SymbolTable): Boolean = {
+      println("Checking Mul")
+      expr1.getType(st) == IntST() && expr2.getType(st) == IntST()
+    }
+    def getType(st: SymbolTable): TypeST = IntST()
+  }
 
   object Mul extends ParserBridgePos2[Expr, Expr, Mul]
 
-  case class Div(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp
+  case class Div(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
+    def check(st: SymbolTable): Boolean = {
+      println("Checking Div")
+      expr1.getType(st) == IntST() && expr2.getType(st) == IntST()
+    }
+    def getType(st: SymbolTable): TypeST = IntST()
+  }
 
   object Div extends ParserBridgePos2[Expr, Expr, Div]
 
-  case class Mod(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp
+  case class Mod(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
+    def check(st: SymbolTable): Boolean = {
+      println("Checking Mod")
+      expr1.getType(st) == IntST() && expr2.getType(st) == IntST()
+    }
+    def getType(st: SymbolTable): TypeST = IntST()
+  }
 
   object Mod extends ParserBridgePos2[Expr, Expr, Mod]
 
-  case class Add(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp
+  case class Add(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
+    def check(st: SymbolTable): Boolean = {
+      println("Checking Add")
+      expr1.getType(st) == IntST() && expr2.getType(st) == IntST()
+    }
+    def getType(st: SymbolTable): TypeST = IntST()
+  }
 
   object Add extends ParserBridgePos2[Expr, Expr, Add]
 
-  case class Sub(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp
+  case class Sub(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
+    def check(st: SymbolTable): Boolean = {
+      println("Checking Sub")
+      expr1.getType(st) == IntST() && expr2.getType(st) == IntST()
+    }
+    def getType(st: SymbolTable): TypeST = IntST()
+  }
 
   object Sub extends ParserBridgePos2[Expr, Expr, Sub]
 
-  case class GT(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp
+  case class GT(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
+    def check(st: SymbolTable): Boolean = {
+      println("Checking GT")
+      expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
+      expr1.getType(st) == CharST() && expr2.getType(st) == CharST()
+    }
+    def getType(st: SymbolTable): TypeST = BoolST()
+  }
 
   object GT extends ParserBridgePos2[Expr, Expr, GT]
 
-  case class GTE(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp
+  case class GTE(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
+    def check(st: SymbolTable): Boolean = {
+      println("Checking GTE")
+      expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
+      expr1.getType(st) == CharST() && expr2.getType(st) == CharST()
+    }
+    def getType(st: SymbolTable): TypeST = BoolST()
+  }
 
   object GTE extends ParserBridgePos2[Expr, Expr, GTE]
 
-  case class LT(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp
+  case class LT(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
+    def check(st: SymbolTable): Boolean = {
+      println("Checking LT")
+      expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
+      expr1.getType(st) == CharST() && expr2.getType(st) == CharST()
+    }
+    def getType(st: SymbolTable): TypeST = BoolST()
+  }
 
   object LT extends ParserBridgePos2[Expr, Expr, LT]
 
-  case class LTE(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp
+  case class LTE(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
+    def check(st: SymbolTable): Boolean = {
+      println("Checking LTE")
+      expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
+      expr1.getType(st) == CharST() && expr2.getType(st) == CharST()
+    }
+    def getType(st: SymbolTable): TypeST = BoolST()
+  }
 
   object LTE extends ParserBridgePos2[Expr, Expr, LTE]
 
-  case class EQ(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp
+  case class EQ(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
+    def check(st: SymbolTable): Boolean = {
+      println("Checking EQ")
+      expr1.getType(st) == expr2.getType(st)
+    }
+    def getType(st: SymbolTable): TypeST = BoolST()
+  }
 
   object EQ extends ParserBridgePos2[Expr, Expr, EQ]
 
-  case class NEQ(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp
+  case class NEQ(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
+    def check(st: SymbolTable): Boolean = {
+      println("Checking NEQ")
+      expr1.getType(st) == expr2.getType(st)
+    }
+    def getType(st: SymbolTable): TypeST = BoolST()
+  }
 
   object NEQ extends ParserBridgePos2[Expr, Expr, NEQ]
 
-  case class And(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp
+  case class And(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
+    def check(st: SymbolTable): Boolean = {
+      println("Checking And")
+      expr1.getType(st) == BoolST() && expr2.getType(st) == BoolST()
+    }
+    def getType(st: SymbolTable): TypeST = BoolST()
+  }
 
   object And extends ParserBridgePos2[Expr, Expr, And]
 
-  case class Or(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp
+  case class Or(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
+    def check(st: SymbolTable): Boolean = {
+      println("Checking Or")
+      expr1.getType(st) == BoolST() && expr2.getType(st) == BoolST()
+    }
+    def getType(st: SymbolTable): TypeST = BoolST()
+  }
 
   object Or extends ParserBridgePos2[Expr, Expr, Or]
 }
