@@ -118,7 +118,7 @@ object ast {
       val lhsType = t.getType(st)
       println("LHS type:" + lhsType + " RHS type: " + rhsType)
       val resType = typeCompare(lhsType, rhsType)
-      if (resType == VoidST()) {
+      if (typeCheck(resType)) {
         println("Error: " + ident.name + " type mismatch\n")
         false
       } else {

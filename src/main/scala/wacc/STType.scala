@@ -45,4 +45,11 @@ object STType {
     case _ => VoidST()
   }
 
+  // not nice, will see
+  def typeCheck(t: TypeST): Boolean = t match {
+    case VoidST() => false
+    case ArrayST(t) => typeCheck(t)
+    case PairST(t1, t2) => typeCheck(t1) && typeCheck(t2)
+    case _ => true
+  }
 }
