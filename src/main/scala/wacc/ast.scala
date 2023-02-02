@@ -42,7 +42,24 @@ object ast {
 
   // <PROGRAM>
   // Since Stat; Stat is valid, we represent it as a list of Stat
-  case class Program(functions: List[Func], stat: List[Stat])(val pos: (Int, Int)) extends ASTNode
+  case class Program(functions: List[Func], stat: List[Stat])(val pos: (Int, Int)) extends ASTNode {
+    def check(st: SymbolTable) : Boolean = {
+      var result = true
+      println("Checking program: ")
+      for (f <- functions) {
+        if (!f.check(st)) {
+          result = false
+        }
+      }
+      for (s <- stat) {
+        if (!s.check(st)) {
+          result = false
+        }
+      }
+      println("Gucci")
+      result
+    }
+  }
 
   object Program {
     def apply(functions: Parsley[List[Func]], stat: Parsley[List[Stat]]): Parsley[Program] =
@@ -51,7 +68,13 @@ object ast {
 
   // <FUNC>
 
-  case class Func(t: Type, ident: Ident, vars: List[Param], stat: List[Stat])(val pos: (Int, Int)) extends ASTNode
+  case class Func(t: Type, ident: Ident, vars: List[Param], stat: List[Stat])(val pos: (Int, Int)) extends ASTNode {
+    def check(st: SymbolTable) : Boolean = {
+      println("Checking function: " + ident.name)
+      //TODO
+      true
+    }
+  }
 
   object Func {
     def apply(t: Parsley[Type], ident: Parsley[Ident], vars: Parsley[List[Param]], stat: Parsley[List[Stat]]): Parsley[Func] =
@@ -69,69 +92,142 @@ object ast {
   }
 
   // <STAT>
-  sealed trait Stat extends ASTNode
+  sealed trait Stat extends ASTNode {
+    def check(st: SymbolTable) : Boolean
+  }
 
-  case class Skip()(val pos: (Int, Int)) extends Stat
+  case class Skip()(val pos: (Int, Int)) extends Stat {
+    override def check(st: SymbolTable): Boolean = {
+      println("Checking skip")
+      true
+    }
+  }
 
   object Skip extends ParserBridgePos0[Skip]
 
-  case class AssignNew(t: Type, ident: Ident, rvalue: Rvalue)(val pos: (Int, Int)) extends Stat
+  case class AssignNew(t: Type, ident: Ident, rvalue: Rvalue)(val pos: (Int, Int)) extends Stat {
+    override def check(st: SymbolTable): Boolean = {
+      println("Checking assign new: " + ident.name)
+      //TODO
+      true
+    }
+  }
 
   object AssignNew {
     def apply(t: Parsley[Type], ident: Parsley[Ident], rvalue: Parsley[Rvalue]): Parsley[AssignNew] =
       pos <**> (t, ident, rvalue).zipped(AssignNew(_, _, _) _)
   }
 
-  case class Assign(lvalue: Lvalue, rvalue: Rvalue)(val pos: (Int, Int)) extends Stat
+  case class Assign(lvalue: Lvalue, rvalue: Rvalue)(val pos: (Int, Int)) extends Stat {
+    override def check(st: SymbolTable): Boolean = {
+      println("Checking assign: " + lvalue)
+      //TODO
+      true
+    }
+  }
 
   object Assign {
     def apply(lvalue: Parsley[Lvalue], rvalue: Parsley[Rvalue]): Parsley[Assign] =
       pos <**> (lvalue, rvalue).zipped(Assign(_, _) _)
   }
 
-  case class Read(lvalue: Lvalue)(val pos: (Int, Int)) extends Stat
+  case class Read(lvalue: Lvalue)(val pos: (Int, Int)) extends Stat {
+    override def check(st: SymbolTable): Boolean = {
+      println("Checking read: " + lvalue)
+      //TODO
+      true
+    }
+  }
 
   object Read {
     def apply(lvalue: Parsley[Lvalue]): Parsley[Read] =
       pos <**> lvalue.map(Read(_) _)
   }
 
-  case class Free(expr: Expr)(val pos: (Int, Int)) extends Stat
+  case class Free(expr: Expr)(val pos: (Int, Int)) extends Stat {
+    override def check(st: SymbolTable): Boolean = {
+      println("Checking free: " + expr)
+      //TODO
+      true
+    }
+  }
 
   object Free extends ParserBridgePos1[Expr, Free]
 
-  case class Return(expr: Expr)(val pos: (Int, Int)) extends Stat
+  case class Return(expr: Expr)(val pos: (Int, Int)) extends Stat {
+    override def check(st: SymbolTable): Boolean = {
+      println("Checking return: " + expr)
+      //TODO
+      true
+    }
+  }
 
   object Return extends ParserBridgePos1[Expr, Return]
 
-  case class Exit(expr: Expr)(val pos: (Int, Int)) extends Stat
+  case class Exit(expr: Expr)(val pos: (Int, Int)) extends Stat {
+    override def check(st: SymbolTable): Boolean = {
+      println("Checking exit: " + expr)
+      //TODO
+      true
+    }
+  }
 
   object Exit extends ParserBridgePos1[Expr, Exit]
 
-  case class Print(expr: Expr)(val pos: (Int, Int)) extends Stat
+  case class Print(expr: Expr)(val pos: (Int, Int)) extends Stat {
+    override def check(st: SymbolTable): Boolean = {
+      println("Checking print: " + expr)
+      //TODO
+      true
+    }
+  }
 
   object Print extends ParserBridgePos1[Expr, Print]
 
-  case class Println(expr: Expr)(val pos: (Int, Int)) extends Stat
+  case class Println(expr: Expr)(val pos: (Int, Int)) extends Stat {
+    override def check(st: SymbolTable): Boolean = {
+      println("Checking println: " + expr)
+      //TODO
+      true
+    }
+  }
 
   object Println extends ParserBridgePos1[Expr, Println]
 
   // Stat can call another Stat, so we represent it as a list of Stat
-  case class If(cond: Expr, trueStat: List[Stat], falseStat: List[Stat])(val pos: (Int, Int)) extends Stat
+  case class If(cond: Expr, trueStat: List[Stat], falseStat: List[Stat])(val pos: (Int, Int)) extends Stat {
+    override def check(st: SymbolTable): Boolean = {
+      println("Checking if: " + cond)
+      //TODO
+      true
+    }
+  }
 
   object If {
     def apply(cond: Parsley[Expr], trueStat: Parsley[List[Stat]], falseStat: Parsley[List[Stat]]): Parsley[If] =
       pos <**> (cond, trueStat, falseStat).zipped(If(_, _, _) _)
   }
 
-  case class While(cond: Expr, stat: List[Stat])(val pos: (Int, Int)) extends Stat
+  case class While(cond: Expr, stat: List[Stat])(val pos: (Int, Int)) extends Stat {
+    override def check(st: SymbolTable): Boolean = {
+      println("Checking while: " + cond)
+      //TODO
+      true
+    }
+  }
 
   object While {
     def apply(cond: Parsley[Expr], stat: Parsley[List[Stat]]): Parsley[While] =
       pos <**> (cond, stat).zipped(While(_, _) _)
   }
 
-  case class BeginStat(stat: List[Stat])(val pos: (Int, Int)) extends Stat
+  case class BeginStat(stat: List[Stat])(val pos: (Int, Int)) extends Stat {
+    override def check(st: SymbolTable): Boolean = {
+      println("Checking begin")
+      //TODO
+      true
+    }
+  }
 
   object BeginStat {
     def apply(stat: Parsley[List[Stat]]): Parsley[BeginStat] =
