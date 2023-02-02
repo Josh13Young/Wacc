@@ -109,8 +109,27 @@ object ast {
   case class AssignNew(t: Type, ident: Ident, rvalue: Rvalue)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable): Boolean = {
       println("Checking assign new: " + ident.name)
-      //TODO
-      true
+      val query = st.lookup(ident.name)
+      if (query.isDefined) {
+        println("Error: " + ident.name + " already defined\n")
+        return false
+      }
+      val rhsType = rvalue.getType(st)
+      val lhsType = t.getType(st)
+      println("LHS type:" + lhsType + " RHS type: " + rhsType)
+      if (lhsType != rhsType) {
+        println("Error: " + ident.name + " type mismatch\n")
+        false
+      } else {
+        if (!rvalue.check(st)) {
+          println("Error: " + ident.name + " RHS check failed\n")
+          return false
+        }
+        st.add(ident.name, lhsType, rvalue)
+        println(st)
+        println("Assign New Gucci\n")
+        true
+      }
     }
   }
 
@@ -236,7 +255,10 @@ object ast {
   }
 
   // <LVALUE>
-  sealed trait Lvalue extends ASTNode
+  sealed trait Lvalue extends ASTNode {
+    def check(st: SymbolTable): Boolean
+    def getType(st: SymbolTable): TypeST
+  }
 
   // <IDENT>
   case class Ident(name: String)(val pos: (Int, Int)) extends Lvalue with Expr {
@@ -255,10 +277,10 @@ object ast {
     override def getType(st: SymbolTable): TypeST = {
       val query = st.lookupAll(name)
       if (query.isEmpty) {
-        println("Error: " + name + " is not declared")
+        println("Error: " + name + " is not declared (type)")
         null
       } else {
-        println("Ident " + name + " is declared")
+        println("Ident " + name + " is declared (type)")
         query.head._1
       }
     }
@@ -309,14 +331,22 @@ object ast {
   // <PAIR-ELEM>
   sealed trait PairElem extends Lvalue with Rvalue
 
-  case class FstElem(lvalue: Lvalue)(val pos: (Int, Int)) extends PairElem
+  case class FstElem(lvalue: Lvalue)(val pos: (Int, Int)) extends PairElem {
+    override def check(st: SymbolTable): Boolean = ???
+
+    override def getType(st: SymbolTable): TypeST = ???
+  }
 
   object FstElem {
     def apply(lvalue: Parsley[Lvalue]): Parsley[FstElem] =
       pos <**> lvalue.map(FstElem(_) _)
   }
 
-  case class SndElem(lvalue: Lvalue)(val pos: (Int, Int)) extends PairElem
+  case class SndElem(lvalue: Lvalue)(val pos: (Int, Int)) extends PairElem {
+    override def check(st: SymbolTable): Boolean = ???
+
+    override def getType(st: SymbolTable): TypeST = ???
+  }
 
   object SndElem {
     def apply(lvalue: Parsley[Lvalue]): Parsley[SndElem] =
@@ -324,24 +354,39 @@ object ast {
   }
 
   // <RVALUE>
-  sealed trait Rvalue extends ASTNode
+  sealed trait Rvalue extends ASTNode {
+    def check(st: SymbolTable): Boolean
+    def getType(st: SymbolTable): TypeST
+  }
 
   // <ARRAY-LITER>
-  case class ArrayLiter(exprList: List[Expr])(val pos: (Int, Int)) extends Rvalue
+  case class ArrayLiter(exprList: List[Expr])(val pos: (Int, Int)) extends Rvalue {
+    override def check(st: SymbolTable): Boolean = ???
+
+    override def getType(st: SymbolTable): TypeST = ???
+  }
 
   object ArrayLiter {
     def apply(exprList: Parsley[List[Expr]]): Parsley[ArrayLiter] =
       pos <**> exprList.map(ArrayLiter(_) _)
   }
 
-  case class NewPair(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends Rvalue
+  case class NewPair(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends Rvalue {
+    override def check(st: SymbolTable): Boolean = ???
+
+    override def getType(st: SymbolTable): TypeST = ???
+  }
 
   object NewPair {
     def apply(expr1: Parsley[Expr], expr2: Parsley[Expr]): Parsley[NewPair] =
       pos <**> (expr1, expr2).zipped(NewPair(_, _) _)
   }
 
-  case class Call(ident: Ident, argList: List[Expr])(val pos: (Int, Int)) extends Rvalue // args-list only appears once
+  case class Call(ident: Ident, argList: List[Expr])(val pos: (Int, Int)) extends Rvalue {
+    override def check(st: SymbolTable): Boolean = ???
+
+    override def getType(st: SymbolTable): TypeST = ???
+  } // args-list only appears once
 
   object Call {
     def apply(ident: Parsley[Ident], argList: Parsley[List[Expr]]): Parsley[Call] =
@@ -471,7 +516,7 @@ object ast {
   case class Not(expr: Expr)(val pos: (Int, Int)) extends UnaryOp {
     def check(st: SymbolTable): Boolean = {
       println("Checking Not")
-      expr.getType(st) == BoolST()
+      expr.getType(st) == BoolST() && expr.check(st)
     }
     def getType(st: SymbolTable): TypeST = BoolST()
   }
@@ -481,7 +526,7 @@ object ast {
   case class Neg(expr: Expr)(val pos: (Int, Int)) extends UnaryOp {
     def check(st: SymbolTable): Boolean = {
       println("Checking Neg")
-      expr.getType(st) == IntST()
+      expr.getType(st) == IntST() && expr.check(st)
     }
     def getType(st: SymbolTable): TypeST = IntST()
   }
@@ -504,7 +549,7 @@ object ast {
   case class Ord(expr: Expr)(val pos: (Int, Int)) extends UnaryOp {
     def check(st: SymbolTable): Boolean = {
       println("Checking Ord")
-      expr.getType(st) == CharST()
+      expr.getType(st) == CharST() && expr.check(st)
     }
     def getType(st: SymbolTable): TypeST = IntST()
   }
@@ -515,7 +560,7 @@ object ast {
   case class Chr(expr: Expr)(val pos: (Int, Int)) extends UnaryOp {
     def check(st: SymbolTable): Boolean = {
       println("Checking Chr")
-      expr.getType(st) == IntST()
+      expr.getType(st) == IntST() && expr.check(st)
     }
     def getType(st: SymbolTable): TypeST = CharST()
   }
@@ -529,7 +574,7 @@ object ast {
   case class Mul(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable): Boolean = {
       println("Checking Mul")
-      expr1.getType(st) == IntST() && expr2.getType(st) == IntST()
+      expr1.getType(st) == IntST() && expr2.getType(st) == IntST() && expr1.check(st) && expr2.check(st)
     }
     def getType(st: SymbolTable): TypeST = IntST()
   }
@@ -539,7 +584,7 @@ object ast {
   case class Div(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable): Boolean = {
       println("Checking Div")
-      expr1.getType(st) == IntST() && expr2.getType(st) == IntST()
+      expr1.getType(st) == IntST() && expr2.getType(st) == IntST() && expr1.check(st) && expr2.check(st)
     }
     def getType(st: SymbolTable): TypeST = IntST()
   }
@@ -549,7 +594,7 @@ object ast {
   case class Mod(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable): Boolean = {
       println("Checking Mod")
-      expr1.getType(st) == IntST() && expr2.getType(st) == IntST()
+      expr1.getType(st) == IntST() && expr2.getType(st) == IntST() && expr1.check(st) && expr2.check(st)
     }
     def getType(st: SymbolTable): TypeST = IntST()
   }
@@ -559,7 +604,7 @@ object ast {
   case class Add(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable): Boolean = {
       println("Checking Add")
-      expr1.getType(st) == IntST() && expr2.getType(st) == IntST()
+      expr1.getType(st) == IntST() && expr2.getType(st) == IntST() && expr1.check(st) && expr2.check(st)
     }
     def getType(st: SymbolTable): TypeST = IntST()
   }
@@ -569,7 +614,7 @@ object ast {
   case class Sub(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable): Boolean = {
       println("Checking Sub")
-      expr1.getType(st) == IntST() && expr2.getType(st) == IntST()
+      expr1.getType(st) == IntST() && expr2.getType(st) == IntST() && expr1.check(st) && expr2.check(st)
     }
     def getType(st: SymbolTable): TypeST = IntST()
   }
@@ -579,8 +624,8 @@ object ast {
   case class GT(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable): Boolean = {
       println("Checking GT")
-      expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
-      expr1.getType(st) == CharST() && expr2.getType(st) == CharST()
+      (expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
+      expr1.getType(st) == CharST() && expr2.getType(st) == CharST()) && expr1.check(st) && expr2.check(st)
     }
     def getType(st: SymbolTable): TypeST = BoolST()
   }
@@ -590,8 +635,8 @@ object ast {
   case class GTE(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable): Boolean = {
       println("Checking GTE")
-      expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
-      expr1.getType(st) == CharST() && expr2.getType(st) == CharST()
+      (expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
+      expr1.getType(st) == CharST() && expr2.getType(st) == CharST()) && expr1.check(st) && expr2.check(st)
     }
     def getType(st: SymbolTable): TypeST = BoolST()
   }
@@ -601,8 +646,8 @@ object ast {
   case class LT(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable): Boolean = {
       println("Checking LT")
-      expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
-      expr1.getType(st) == CharST() && expr2.getType(st) == CharST()
+      (expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
+      expr1.getType(st) == CharST() && expr2.getType(st) == CharST()) && expr1.check(st) && expr2.check(st)
     }
     def getType(st: SymbolTable): TypeST = BoolST()
   }
@@ -612,8 +657,8 @@ object ast {
   case class LTE(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable): Boolean = {
       println("Checking LTE")
-      expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
-      expr1.getType(st) == CharST() && expr2.getType(st) == CharST()
+      (expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
+      expr1.getType(st) == CharST() && expr2.getType(st) == CharST()) && expr1.check(st) && expr2.check(st)
     }
     def getType(st: SymbolTable): TypeST = BoolST()
   }
@@ -623,7 +668,7 @@ object ast {
   case class EQ(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable): Boolean = {
       println("Checking EQ")
-      expr1.getType(st) == expr2.getType(st)
+      expr1.getType(st) == expr2.getType(st) && expr1.check(st) && expr2.check(st)
     }
     def getType(st: SymbolTable): TypeST = BoolST()
   }
@@ -633,7 +678,7 @@ object ast {
   case class NEQ(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable): Boolean = {
       println("Checking NEQ")
-      expr1.getType(st) == expr2.getType(st)
+      expr1.getType(st) == expr2.getType(st) && expr1.check(st) && expr2.check(st)
     }
     def getType(st: SymbolTable): TypeST = BoolST()
   }
@@ -643,7 +688,7 @@ object ast {
   case class And(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable): Boolean = {
       println("Checking And")
-      expr1.getType(st) == BoolST() && expr2.getType(st) == BoolST()
+      expr1.getType(st) == BoolST() && expr2.getType(st) == BoolST() && expr1.check(st) && expr2.check(st)
     }
     def getType(st: SymbolTable): TypeST = BoolST()
   }
@@ -653,7 +698,7 @@ object ast {
   case class Or(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable): Boolean = {
       println("Checking Or")
-      expr1.getType(st) == BoolST() && expr2.getType(st) == BoolST()
+      expr1.getType(st) == BoolST() && expr2.getType(st) == BoolST() && expr1.check(st) && expr2.check(st)
     }
     def getType(st: SymbolTable): TypeST = BoolST()
   }
