@@ -142,7 +142,22 @@ object ast {
   case class Assign(lvalue: Lvalue, rvalue: Rvalue)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable): Boolean = {
       println("Checking assign: " + lvalue)
-      //TODO
+      if (!lvalue.check(st)) {
+        println("Error: " + lvalue + " LHS check failed\n")
+        return false
+      }
+      val identType = lvalue.getType(st)
+      val rhsType = rvalue.getType(st)
+      println("LHS type:" + identType + " RHS type: " + rhsType)
+      val resType = typeCompare(identType, rhsType)
+      if (!typeCheck(resType)) {
+        println("Error: " + lvalue + " type mismatch\n")
+        return false
+      }
+      if (!rvalue.check(st)) {
+        println("Error: " + lvalue + " RHS check failed\n")
+        return false
+      }
       true
     }
   }
@@ -368,9 +383,26 @@ object ast {
   sealed trait PairElem extends Lvalue with Rvalue
 
   case class FstElem(lvalue: Lvalue)(val pos: (Int, Int)) extends PairElem {
-    override def check(st: SymbolTable): Boolean = ???
+    override def check(st: SymbolTable): Boolean = {
+      println("Checking fst of : " + lvalue)
+      lvalue.getType(st) match {
+        case PairST(_, _) =>
+          lvalue.check(st)
+        case _ =>
+          println("Error: " + lvalue + " is not a pair")
+          false
+      }
+    }
 
-    override def getType(st: SymbolTable): TypeST = ???
+    override def getType(st: SymbolTable): TypeST = {
+      println("Getting type of fst of : " + lvalue)
+      lvalue.getType(st) match {
+        case PairST(t1, _) => t1
+        case _ =>
+          println("Error: " + lvalue + " is not a pair")
+          VoidST()
+      }
+    }
   }
 
   object FstElem {
@@ -379,9 +411,26 @@ object ast {
   }
 
   case class SndElem(lvalue: Lvalue)(val pos: (Int, Int)) extends PairElem {
-    override def check(st: SymbolTable): Boolean = ???
+    override def check(st: SymbolTable): Boolean = {
+      println("Checking snd of : " + lvalue)
+      lvalue.getType(st) match {
+        case PairST(_, _) =>
+          lvalue.check(st)
+        case _ =>
+          println("Error: " + lvalue + " is not a pair")
+          false
+      }
+    }
 
-    override def getType(st: SymbolTable): TypeST = ???
+    override def getType(st: SymbolTable): TypeST = {
+      println("Getting type of snd of : " + lvalue)
+      lvalue.getType(st) match {
+        case PairST(_, t2) => t2
+        case _ =>
+          println("Error: " + lvalue + " is not a pair")
+          VoidST()
+      }
+    }
   }
 
   object SndElem {
