@@ -118,7 +118,7 @@ object ast {
       val lhsType = t.getType(st)
       println("LHS type:" + lhsType + " RHS type: " + rhsType)
       val resType = typeCompare(lhsType, rhsType)
-      if (typeCheck(resType)) {
+      if (!typeCheck(resType)) {
         println("Error: " + ident.name + " type mismatch\n")
         false
       } else {
@@ -220,8 +220,25 @@ object ast {
   // Stat can call another Stat, so we represent it as a list of Stat
   case class If(cond: Expr, trueStat: List[Stat], falseStat: List[Stat])(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable): Boolean = {
-      println("Checking if: " + cond)
-      //TODO
+      println("Checking if: " + cond + "...")
+      if (cond.getType(st) != BoolST()) {
+        println("Error: " + cond + " is not a boolean\n")
+        return false
+      }
+      if (!cond.check(st)) {
+        println("Error: " + cond + " check failed\n")
+        return false
+      }
+      val trueST = new SymbolTable(Option(st))
+      if (!trueStat.forall(_.check(trueST))) {
+        println("Error: " + trueStat + " check failed\n")
+        return false
+      }
+      val falseST = new SymbolTable(Option(st))
+      if (!falseStat.forall(_.check(falseST))) {
+        println("Error: " + falseStat + " check failed\n")
+        return false
+      }
       true
     }
   }
@@ -233,8 +250,20 @@ object ast {
 
   case class While(cond: Expr, stat: List[Stat])(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable): Boolean = {
-      println("Checking while: " + cond)
-      //TODO
+      println("Checking while: " + cond + "...")
+      if (cond.getType(st) != BoolST()) {
+        println("Error: " + cond + " is not a boolean\n")
+        return false
+      }
+      if (!cond.check(st)) {
+        println("Error: " + cond + " check failed\n")
+        return false
+      }
+      val whileST = new SymbolTable(Option(st))
+      if (!stat.forall(_.check(whileST))) {
+        println("Error: " + stat + " check failed\n")
+        return false
+      }
       true
     }
   }
@@ -246,8 +275,12 @@ object ast {
 
   case class BeginStat(stat: List[Stat])(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable): Boolean = {
-      println("Checking begin")
-      //TODO
+      println("Checking begin: " + stat + "...")
+      val beginST = new SymbolTable(Option(st))
+      if (!stat.forall(_.check(beginST))) {
+        println("Error: " + stat + " check failed\n")
+        return false
+      }
       true
     }
   }
