@@ -32,4 +32,17 @@ object STType {
     case _ => throw new Exception("Invalid type") // unreachable
   }
 
+  def typeCompare(t1: TypeST, t2: TypeST): Boolean =
+    (t1, t2) match {
+    case (IntST(), IntST()) => true
+    case (BoolST(), BoolST()) => true
+    case (CharST(), CharST()) => true
+    case (StringST(), StringST()) => true
+    case (ArrayST(t1), ArrayST(t2)) => typeCompare(t1, t2)
+    case (PairST(t11, t12), PairST(t21, t22)) => typeCompare(t11, t21) && typeCompare(t12, t22)
+    case (AnyST(), _) => true
+    case (_, AnyST()) => true
+    case _ => false
+  }
+
 }

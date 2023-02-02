@@ -117,7 +117,7 @@ object ast {
       val rhsType = rvalue.getType(st)
       val lhsType = t.getType(st)
       println("LHS type:" + lhsType + " RHS type: " + rhsType)
-      if (lhsType != rhsType) {
+      if (!typeCompare(lhsType, rhsType)) {
         println("Error: " + ident.name + " type mismatch\n")
         false
       } else {
@@ -361,9 +361,33 @@ object ast {
 
   // <ARRAY-LITER>
   case class ArrayLiter(exprList: List[Expr])(val pos: (Int, Int)) extends Rvalue {
-    override def check(st: SymbolTable): Boolean = ???
+    override def check(st: SymbolTable): Boolean = {
+      println("Checking array liter")
+      var result = true
+      if (exprList.isEmpty) {
+        println("Success, empty array")
+      } else {
+        val elemType = exprList.head.getType(st)
+        for (expr <- exprList) {
+          if (expr.getType(st) != elemType) {
+            println("Error: array elements must be of the same type")
+            result = false
+          }
+          expr.check(st)
+        }
+      }
+      result
+    }
 
-    override def getType(st: SymbolTable): TypeST = ???
+    override def getType(st: SymbolTable): TypeST = {
+      println("Getting type of array liter")
+      if (exprList.isEmpty) {
+        ArrayST(AnyST())
+      } else {
+        val exprType = exprList.head.getType(st)
+        ArrayST(exprType)
+      }
+    }
   }
 
   object ArrayLiter {
