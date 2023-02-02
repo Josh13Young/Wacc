@@ -168,8 +168,13 @@ object ast {
   case class Free(expr: Expr)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable): Boolean = {
       println("Checking free: " + expr)
-      //TODO
-      true
+      expr.getType(st) match {
+        case ArrayST(_) => expr.check(st)
+        case PairST(_, _) => expr.check(st)
+        case _ =>
+          println("Error: " + expr + " is not an array or pair\n")
+          false
+      }
     }
   }
 
@@ -188,8 +193,7 @@ object ast {
   case class Exit(expr: Expr)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable): Boolean = {
       println("Checking exit: " + expr)
-      //TODO
-      true
+      expr.getType(st) == IntST() && expr.check(st)
     }
   }
 
@@ -198,8 +202,7 @@ object ast {
   case class Print(expr: Expr)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable): Boolean = {
       println("Checking print: " + expr)
-      //TODO
-      true
+      expr.check(st)
     }
   }
 
@@ -208,8 +211,7 @@ object ast {
   case class Println(expr: Expr)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable): Boolean = {
       println("Checking println: " + expr)
-      //TODO
-      true
+      expr.check(st)
     }
   }
 
@@ -567,8 +569,10 @@ object ast {
   case class Len(expr: Expr)(val pos: (Int, Int)) extends UnaryOp {
     def check(st: SymbolTable): Boolean = {
       println("Checking Len")
-      // TODO
-      true
+      expr.getType(st) match {
+        case ArrayST(_) => expr.check(st)
+        case _ => false
+      }
     }
     def getType(st: SymbolTable): TypeST = IntST()
   }

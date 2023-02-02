@@ -38,7 +38,7 @@ object STType {
     case (BoolST(), BoolST()) => BoolST()
     case (CharST(), CharST()) => CharST()
     case (StringST(), StringST()) => StringST()
-    case (ArrayST(t1), ArrayST(t2)) => typeCompare(t1, t2)
+    case (ArrayST(t1), ArrayST(t2)) => ArrayST(typeCompare(t1, t2))
     case (PairST(t11, t12), PairST(t21, t22)) => PairST(typeCompare(t11, t21), typeCompare(t12, t22))
     case (AnyST(), x) => x
     case (x, AnyST()) => x
