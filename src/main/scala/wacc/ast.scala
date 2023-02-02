@@ -117,7 +117,8 @@ object ast {
       val rhsType = rvalue.getType(st)
       val lhsType = t.getType(st)
       println("LHS type:" + lhsType + " RHS type: " + rhsType)
-      if (!typeCompare(lhsType, rhsType)) {
+      val resType = typeCompare(lhsType, rhsType)
+      if (resType == VoidST()) {
         println("Error: " + ident.name + " type mismatch\n")
         false
       } else {
@@ -125,7 +126,7 @@ object ast {
           println("Error: " + ident.name + " RHS check failed\n")
           return false
         }
-        st.add(ident.name, lhsType, rvalue)
+        st.add(ident.name, resType, rvalue)
         println(st)
         println("Assign New Gucci\n")
         true
@@ -396,9 +397,14 @@ object ast {
   }
 
   case class NewPair(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends Rvalue {
-    override def check(st: SymbolTable): Boolean = ???
+    override def check(st: SymbolTable): Boolean = {
+      println("Checking new pair")
+      expr1.check(st) && expr2.check(st)
+    }
 
-    override def getType(st: SymbolTable): TypeST = ???
+    override def getType(st: SymbolTable): TypeST = {
+      PairST(expr1.getType(st), expr2.getType(st))
+    }
   }
 
   object NewPair {
