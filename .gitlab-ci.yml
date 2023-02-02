@@ -9,7 +9,19 @@ build-job:
   script:
     - sbt compile
 
-unit-test-job:
+parser-test-job:
   stage: test
   script:
-    - sbt test
+    - sbt "testOnly wacc.ParserTests"
+
+parser-basic-test:
+  stage: test
+  script:
+    - sbt "testOnly wacc.basicTest"
+
+parser-advanced-test:
+  stage: test
+  script:
+    - sbt "testOnly wacc.functionTest"
+    - sbt "testOnly wacc.arrayTest"
+    - sbt "testOnly wacc.pairTest"
