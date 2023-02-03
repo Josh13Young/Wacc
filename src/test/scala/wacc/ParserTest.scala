@@ -2,13 +2,9 @@ package wacc
 
 import org.scalatest._
 import flatspec._
-import org.scalatest.matchers.must.Matchers.{not, be, equal, eq}
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
-import parsley.Parsley._
 import parsley.{Failure, Success}
-import parsley.Success
-import parsley.implicits.character.{charLift, stringLift}
 
 class ParserTest extends AnyFlatSpec {
 
