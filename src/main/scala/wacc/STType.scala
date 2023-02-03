@@ -1,7 +1,5 @@
 package wacc
 
-import wacc.ast._
-
 object STType {
   sealed trait TypeST
 
@@ -20,17 +18,6 @@ object STType {
   case class AnyST() extends TypeST
 
   case class VoidST() extends TypeST
-
-  def typeConvert(t: Type): TypeST = t match {
-    case IntType() => IntST()
-    case BoolType() => BoolST()
-    case CharType() => CharST()
-    case StringType() => StringST()
-    case ArrayType(t) => ArrayST(typeConvert(t))
-    case PairType(t1, t2) => PairST(typeConvert(t1), typeConvert(t2))
-    case NestedPairType() => PairST(AnyST(), AnyST())
-    case _ => throw new Exception("Invalid type") // unreachable
-  }
 
   def typeCompare(t1: TypeST, t2: TypeST): TypeST =
     (t1, t2) match {

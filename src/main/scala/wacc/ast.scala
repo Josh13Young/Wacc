@@ -84,6 +84,8 @@ object ast {
         }
         funST.add(v.ident.name, v.getType(st), v)
       }
+      st.add(ident.name + "()", t.getType(st), this)
+      st.addChildFunc(ident.name, funST)
       println(funST)
       val funStatST = new SymbolTable(Some(funST))
       funStatST.isFunctionBody = true
@@ -94,8 +96,6 @@ object ast {
         }
       }
       // to represent function
-      st.add(ident.name + "()", t.getType(st), this)
-      st.addChildFunc(ident.name, funST)
       true
     }
   }
@@ -912,7 +912,7 @@ object ast {
   case class EQ(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable): Boolean = {
       println("Checking EQ")
-      expr1.getType(st) == expr2.getType(st) && expr1.check(st) && expr2.check(st)
+      typeCompare(expr1.getType(st), expr2.getType(st)) != VoidST() && expr1.check(st) && expr2.check(st)
     }
 
     def getType(st: SymbolTable): TypeST = BoolST()
@@ -923,7 +923,7 @@ object ast {
   case class NEQ(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable): Boolean = {
       println("Checking NEQ")
-      expr1.getType(st) == expr2.getType(st) && expr1.check(st) && expr2.check(st)
+      typeCompare(expr1.getType(st), expr2.getType(st)) != VoidST() && expr1.check(st) && expr2.check(st)
     }
 
     def getType(st: SymbolTable): TypeST = BoolST()
