@@ -143,12 +143,11 @@ object ast {
   case class AssignNew(t: Type, ident: Ident, rvalue: Rvalue)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable): Boolean = {
       println("Checking assign new: " + ident.name)
-//      Should not matter if it has been declared, just write over it
-//      val query = st.lookup(ident.name)
-//      if (query.isDefined) {
-//        println("Error: " + ident.name + " already defined\n")
-//        return false
-//      }
+      val query = st.lookup(ident.name)
+      if (query.isDefined) {
+        println("Error: " + ident.name + " already defined\n")
+        return false
+      }
       val rhsType = rvalue.getType(st)
       val lhsType = t.getType(st)
       println("LHS type:" + lhsType + " RHS type: " + rhsType)
@@ -207,9 +206,9 @@ object ast {
       println("Checking read: " + lvalue)
       lvalue.getType(st) match {
         case IntST() => lvalue.check(st)
-        case BoolST() => lvalue.check(st)
+        case CharST() => lvalue.check(st)
         case _ =>
-          println("Error: " + lvalue + " is not an int or bool\n")
+          println("Error: " + lvalue + " is not an int or char\n")
           false
       }
     }
@@ -296,11 +295,15 @@ object ast {
         return false
       }
       val trueST = new SymbolTable(Option(st))
+      trueST.isFunctionBody = st.isFunctionBody
+      trueST.functionReturnType = st.functionReturnType
       if (!trueStat.forall(_.check(trueST))) {
         println("Error: " + trueStat + " check failed\n")
         return false
       }
       val falseST = new SymbolTable(Option(st))
+      falseST.isFunctionBody = st.isFunctionBody
+      falseST.functionReturnType = st.functionReturnType
       if (!falseStat.forall(_.check(falseST))) {
         println("Error: " + falseStat + " check failed\n")
         return false
@@ -326,6 +329,8 @@ object ast {
         return false
       }
       val whileST = new SymbolTable(Option(st))
+      whileST.isFunctionBody = st.isFunctionBody
+      whileST.functionReturnType = st.functionReturnType
       if (!stat.forall(_.check(whileST))) {
         println("Error: " + stat + " check failed\n")
         return false
@@ -343,6 +348,8 @@ object ast {
     override def check(st: SymbolTable): Boolean = {
       println("Checking begin: " + stat + "...")
       val beginST = new SymbolTable(Option(st))
+      beginST.isFunctionBody = st.isFunctionBody
+      beginST.functionReturnType = st.functionReturnType
       if (!stat.forall(_.check(beginST))) {
         println("Error: " + stat + " check failed\n")
         return false
