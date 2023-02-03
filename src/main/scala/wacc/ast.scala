@@ -72,12 +72,11 @@ object ast {
   case class Func(t: Type, ident: Ident, vars: List[Param], stat: List[Stat])(val pos: (Int, Int)) extends ASTNode {
     def check(st: SymbolTable): Boolean = {
       println("Checking function: " + ident.name)
-      val query = st.lookup(ident.name)
+      val query = st.lookup(ident.name + "()")
       if (query.isDefined) {
         println("Error: function " + ident.name + " already defined\n")
         return false
       }
-      st.add(ident.name, t.getType(st), this)
       val funST = new SymbolTable(Some(st))
       funST.parentTable = Some(st)
       for (v <- vars) {
@@ -87,14 +86,15 @@ object ast {
         funST.add(v.ident.name, v.getType(st), v)
       }
       println(funST)
+      val funStatST = new SymbolTable(Some(funST))
       for (s <- stat) {
-        if (!s.check(funST)) {
+        if (!s.check(funStatST)) {
           return false
         }
       }
-      st.childFunctions += Map(ident.name -> funST)
-      println(st.childFunctions.toList)
-      println(st)
+      // to represent function
+      st.add(ident.name + "()", t.getType(st), this)
+      st.addChildFunc(ident.name, funST)
       true
     }
   }
@@ -142,11 +142,12 @@ object ast {
   case class AssignNew(t: Type, ident: Ident, rvalue: Rvalue)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable): Boolean = {
       println("Checking assign new: " + ident.name)
-      val query = st.lookup(ident.name)
-      if (query.isDefined) {
-        println("Error: " + ident.name + " already defined\n")
-        return false
-      }
+//      Should not matter if it has been declared, just write over it
+//      val query = st.lookup(ident.name)
+//      if (query.isDefined) {
+//        println("Error: " + ident.name + " already defined\n")
+//        return false
+//      }
       val rhsType = rvalue.getType(st)
       val lhsType = t.getType(st)
       println("LHS type:" + lhsType + " RHS type: " + rhsType)
@@ -231,7 +232,6 @@ object ast {
   case class Return(expr: Expr)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable): Boolean = {
       println("Checking return: " + expr)
-      //TODO
       true
     }
   }
@@ -396,7 +396,7 @@ object ast {
       println("Getting type of array elem: " + ident)
       var identType = ident.getType(st)
       println("Ident type: " + identType)
-      for (i <- 1 to exprList.length) {
+      for (_ <- 1 to exprList.length) {
         identType match {
           case ArrayST(t) => identType = t
           case _ =>
@@ -534,57 +534,48 @@ object ast {
   case class Call(ident: Ident, argList: List[Expr])(val pos: (Int, Int)) extends Rvalue {
     override def check(st: SymbolTable): Boolean = {
       println("Checking Call")
-      val query = st.locateST(ident.name)
+      val query = st.locateST(ident.name + "()")
       if (query.isEmpty) {
         println("Error: " + ident + " is not defined")
         return false
       }
-      val queryType = query.get.lookup(ident.name).get._2
-      queryType match {
-        case Func(_, _,_ ,_) =>
-          val childFunctions = st.childFunctions
-          for (child <- childFunctions) {
-            val findChild = child.find(_._1 == ident.name)
-            if (findChild.isEmpty) {
-              println("Error: " + ident + " is not defined")
-              return false
-            }
-            if (findChild.isDefined) {
-              val funcST = findChild.get._2
-              val dict = funcST.dictToList(funcST.dictionary)
-              println("dict: " + dict)
-              println("Found child function of args num: " + dict.length)
-              println("Given args:" + argList.length)
-              if (dict.length != argList.length) {
-                println("Error: " + ident + " has wrong number of arguments")
-                return false
-              }
-              for (i <- argList.indices) {
-                if (!argList(i).check(st)) {
-                  println("Error: " + ident + " has wrong type of arguments")
-                  return false
-                }
-                val argType = argList(i).getType(st)
-                val paramType = dict(i)._1
-                println("argType: " + argType)
-                println("paramType: " + paramType)
-                if (argType != paramType) {
-                  println("Error: " + ident + " has wrong type of arguments")
-                  return false
-                }
-              }
-            }
-          }
-          println("Child functions: " + childFunctions)
-          return true
-        case _ =>
-          println("Error: " + ident + " is not a function")
+      // function found in symbol table
+      val funcST = query.get.getChildFunc(ident.name)
+      println("ThisST: " + st)
+      println("FuncST: " + funcST)
+      val dict = funcST.dictToList()
+      println("dict: " + dict)
+      println("Found child function of args num: " + dict.length)
+      println("Given args:" + argList.length)
+      if (dict.length != argList.length) {
+        println("Error: " + ident + " has wrong number of arguments")
+        return false
+      }
+      for (i <- dict.indices) {
+        if (!argList(i).check(st)) {
           return false
+        }
+        val argType = argList(i).getType(st)
+        println("argType: " + argType)
+        val paramType = dict(i)._1
+        println("paramType: " + paramType)
+        if (argType != paramType) {
+          println("Error: " + ident + " has wrong type of arguments")
+          return false
+        }
       }
       true
     }
 
-    override def getType(st: SymbolTable): TypeST = IntST()
+    override def getType(st: SymbolTable): TypeST = {
+      println("Getting type of function call")
+      val query = st.lookupAll(ident.name + "()")
+      if (query.isEmpty) {
+        println("Error: " + ident + " is not defined")
+        return VoidST()
+      }
+      query.get._1
+    }
   } // args-list only appears once
 
   object Call {

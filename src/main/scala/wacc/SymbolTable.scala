@@ -2,13 +2,15 @@ package wacc
 
 import wacc.STType.TypeST
 import wacc.ast.ASTNode
+
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 class SymbolTable(parent: Option[SymbolTable]) {
 
   var parentTable: Option[SymbolTable] = parent
-  var dictionary: Map[String, (TypeST, ASTNode)] = Map()
-  var childFunctions: ListBuffer[Map[String, SymbolTable]] = ListBuffer()
+  private val dictionary: mutable.Map[String, (TypeST, ASTNode)] = mutable.LinkedHashMap[String, (TypeST, ASTNode)]()
+  private val childFunctions: ListBuffer[Map[String, SymbolTable]] = ListBuffer()
 
   def add(name: String, t: TypeST, node: ASTNode): Unit = {
     dictionary += (name -> (t, node))
@@ -29,6 +31,10 @@ class SymbolTable(parent: Option[SymbolTable]) {
     None
   }
 
+  def addChildFunc(name: String, st: SymbolTable): Unit = {
+    childFunctions += Map(name -> st)
+  }
+
   def locateST(name: String): Option[SymbolTable] = {
     var currST = Option(this)
     while (currST.isDefined) {
@@ -40,11 +46,22 @@ class SymbolTable(parent: Option[SymbolTable]) {
     None
   }
 
-  def dictToList(dict: Map[String, (TypeST, ASTNode)]): List[(TypeST, ASTNode)] = {
-    dict.toList.map(x => (x._2._1, x._2._2))
+  def getChildFunc(name:String) : SymbolTable = {
+    var symbolTable = new SymbolTable(None)
+    for (func <- childFunctions) {
+      val result = func.find(_._1 == name)
+      if (result.isDefined) {
+        symbolTable = result.get._2
+      }
+    }
+    symbolTable
+  }
+
+  def dictToList(): List[(TypeST, ASTNode)] = {
+    dictionary.toList.map(x => (x._2._1, x._2._2))
   }
 
   override def toString: String = {
-    dictionary.toString()
+    dictionary.toString() + "\n" + "childFunctions: " + childFunctions.toString()
   }
 }
