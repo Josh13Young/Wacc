@@ -13,11 +13,11 @@ object Main {
           println("Program is semantically correct")
         } else {
           println("Program is semantically incorrect")
-//           sys.exit(200)
+           sys.exit(200)
         }
       case Failure(msg) =>
         println(msg)
-//        sys.exit(100)
+        sys.exit(100)
     }
   }
 }
