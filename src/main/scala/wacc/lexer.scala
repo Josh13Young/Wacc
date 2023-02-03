@@ -43,7 +43,7 @@ object lexer {
 
   val IDF: Parsley[String] = lexer.lexeme.names.identifier
   val INT: Parsley[Int] = lexer.lexeme.numeric.unsigned.decimal32 // int32, 32-bit signed integer
-  val CHR: Parsley[Char] = lexer.lexeme.text.character.ascii.filterNot(_ == '\"').filterNot(_ == '\'').filterNot(_ == '\\')
+  val CHR: Parsley[Char] = lexer.lexeme.text.character.ascii
   val STR: Parsley[String] = lexer.lexeme.text.string.ascii
 
   val implicits: ImplicitSymbol = lexer.lexeme.symbol.implicits
