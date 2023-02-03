@@ -5,6 +5,8 @@ import parsley.implicits.zipped.{Zipped2, Zipped3, Zipped4}
 import parsley.position.pos
 import wacc.STType._
 
+import scala.collection.mutable.ListBuffer
+
 object ast {
 
   // Generic Bridge Traits
@@ -44,11 +46,21 @@ object ast {
   // <PROGRAM>
   // Since Stat; Stat is valid, we represent it as a list of Stat
   case class Program(functions: List[Func], stat: List[Stat])(val pos: (Int, Int)) extends ASTNode {
-    def check(st: SymbolTable) : Boolean = {
+    def check(st: SymbolTable): Boolean = {
       var result = true
       println("Checking program: ")
+      val funSTs = new ListBuffer[SymbolTable]()
       for (f <- functions) {
-        if (!f.check(st)) {
+        val funST = f.checkParam(st)
+        if (funST == null) {
+          return false
+        }
+        funSTs += funST
+      }
+      for (i <- functions.indices) {
+        val funST = funSTs(i)
+        val f = functions(i)
+        if (!f.checkStat(funST)) {
           result = false
         }
       }
@@ -70,24 +82,29 @@ object ast {
   // <FUNC>
 
   case class Func(t: Type, ident: Ident, vars: List[Param], stat: List[Stat])(val pos: (Int, Int)) extends ASTNode {
-    def check(st: SymbolTable): Boolean = {
+    def checkParam(st: SymbolTable): SymbolTable = {
       println("Checking function: " + ident.name)
       val query = st.lookup(ident.name + "()")
       if (query.isDefined) {
         println("Error: function " + ident.name + " already defined\n")
-        return false
+        return null
       }
       val funST = new SymbolTable(Some(st))
       for (v <- vars) {
         if (!v.check(funST)) {
-          return false
+          return null
         }
         funST.add(v.ident.name, v.getType(st), v)
       }
       st.add(ident.name + "()", t.getType(st), this)
       st.addChildFunc(ident.name, funST)
       println(funST)
+      funST
+    }
+
+    def checkStat(funST: SymbolTable): Boolean = {
       val funStatST = new SymbolTable(Some(funST))
+      val st = funStatST.parentTable.get
       funStatST.isFunctionBody = true
       funStatST.functionReturnType = Some(t.getType(st))
       for (s <- stat) {
@@ -95,7 +112,6 @@ object ast {
           return false
         }
       }
-      // to represent function
       true
     }
   }
@@ -118,6 +134,7 @@ object ast {
       }
       true
     }
+
     def getType(st: SymbolTable): TypeST = t.getType(st)
   }
 
@@ -245,7 +262,7 @@ object ast {
         println("Error: " + expr + " not in function body (should not be here)\n")
         return false
       }
-      if (expr.getType(st) != requiredType.get) {
+      if (typeCompare(requiredType.get, expr.getType(st)) == VoidST()) {
         println("Error: Return " + expr + " type mismatch\n")
         return false
       }
@@ -584,7 +601,7 @@ object ast {
         println("argType: " + argType)
         val paramType = dict(i)._1
         println("paramType: " + paramType)
-        if (argType != paramType) {
+        if (typeCompare(argType, paramType) == VoidST()) {
           println("Error: " + ident + " has wrong type of arguments")
           return false
         }
