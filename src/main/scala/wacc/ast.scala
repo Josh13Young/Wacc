@@ -70,9 +70,31 @@ object ast {
   // <FUNC>
 
   case class Func(t: Type, ident: Ident, vars: List[Param], stat: List[Stat])(val pos: (Int, Int)) extends ASTNode {
-    def check(st: SymbolTable) : Boolean = {
+    def check(st: SymbolTable): Boolean = {
       println("Checking function: " + ident.name)
-      //TODO
+      val query = st.lookup(ident.name)
+      if (query.isDefined) {
+        println("Error: function " + ident.name + " already defined\n")
+        return false
+      }
+      st.add(ident.name, t.getType(st), this)
+      val funST = new SymbolTable(Some(st))
+      funST.parentTable = Some(st)
+      for (v <- vars) {
+        if (!v.check(funST)) {
+          return false
+        }
+        funST.add(v.ident.name, v.getType(st), v)
+      }
+      println(funST)
+      for (s <- stat) {
+        if (!s.check(funST)) {
+          return false
+        }
+      }
+      st.childFunctions += Map(ident.name -> funST)
+      println(st.childFunctions.toList)
+      println(st)
       true
     }
   }
@@ -85,7 +107,18 @@ object ast {
   // <PARAM-LIST> omitted (only 1 occurrence)
 
   // <PARAM>
-  case class Param(t: Type, ident: Ident)(val pos: (Int, Int)) extends ASTNode
+  case class Param(t: Type, ident: Ident)(val pos: (Int, Int)) extends ASTNode {
+    def check(st: SymbolTable): Boolean = {
+      println("Checking param: " + ident.name)
+      val query = st.lookup(ident.name)
+      if (query.isDefined) {
+        println("Error: " + ident.name + " already defined\n")
+        return false
+      }
+      true
+    }
+    def getType(st: SymbolTable): TypeST = t.getType(st)
+  }
 
   object Param {
     def apply(t: Parsley[Type], ident: Parsley[Ident]): Parsley[Param] =
@@ -94,7 +127,7 @@ object ast {
 
   // <STAT>
   sealed trait Stat extends ASTNode {
-    def check(st: SymbolTable) : Boolean
+    def check(st: SymbolTable): Boolean
   }
 
   case class Skip()(val pos: (Int, Int)) extends Stat {
@@ -308,6 +341,7 @@ object ast {
   // <LVALUE>
   sealed trait Lvalue extends ASTNode {
     def check(st: SymbolTable): Boolean
+
     def getType(st: SymbolTable): TypeST
   }
 
@@ -441,6 +475,7 @@ object ast {
   // <RVALUE>
   sealed trait Rvalue extends ASTNode {
     def check(st: SymbolTable): Boolean
+
     def getType(st: SymbolTable): TypeST
   }
 
@@ -497,9 +532,59 @@ object ast {
   }
 
   case class Call(ident: Ident, argList: List[Expr])(val pos: (Int, Int)) extends Rvalue {
-    override def check(st: SymbolTable): Boolean = ???
+    override def check(st: SymbolTable): Boolean = {
+      println("Checking Call")
+      val query = st.locateST(ident.name)
+      if (query.isEmpty) {
+        println("Error: " + ident + " is not defined")
+        return false
+      }
+      val queryType = query.get.lookup(ident.name).get._2
+      queryType match {
+        case Func(_, _,_ ,_) =>
+          val childFunctions = st.childFunctions
+          for (child <- childFunctions) {
+            val findChild = child.find(_._1 == ident.name)
+            if (findChild.isEmpty) {
+              println("Error: " + ident + " is not defined")
+              return false
+            }
+            if (findChild.isDefined) {
+              val funcST = findChild.get._2
+              val dict = funcST.dictToList(funcST.dictionary)
+              println("dict: " + dict)
+              println("Found child function of args num: " + dict.length)
+              println("Given args:" + argList.length)
+              if (dict.length != argList.length) {
+                println("Error: " + ident + " has wrong number of arguments")
+                return false
+              }
+              for (i <- argList.indices) {
+                if (!argList(i).check(st)) {
+                  println("Error: " + ident + " has wrong type of arguments")
+                  return false
+                }
+                val argType = argList(i).getType(st)
+                val paramType = dict(i)._1
+                println("argType: " + argType)
+                println("paramType: " + paramType)
+                if (argType != paramType) {
+                  println("Error: " + ident + " has wrong type of arguments")
+                  return false
+                }
+              }
+            }
+          }
+          println("Child functions: " + childFunctions)
+          return true
+        case _ =>
+          println("Error: " + ident + " is not a function")
+          return false
+      }
+      true
+    }
 
-    override def getType(st: SymbolTable): TypeST = ???
+    override def getType(st: SymbolTable): TypeST = IntST()
   } // args-list only appears once
 
   object Call {
@@ -510,6 +595,7 @@ object ast {
   // <TYPE>
   sealed trait Type extends ASTNode {
     def check(st: SymbolTable): Boolean
+
     def getType(st: SymbolTable): TypeST
   }
 
@@ -526,6 +612,7 @@ object ast {
 
   case class BoolType()(val pos: (Int, Int)) extends BaseType {
     override def check(st: SymbolTable): Boolean = true
+
     override def getType(st: SymbolTable): TypeST = BoolST()
   }
 
@@ -533,6 +620,7 @@ object ast {
 
   case class CharType()(val pos: (Int, Int)) extends BaseType {
     override def check(st: SymbolTable): Boolean = true
+
     override def getType(st: SymbolTable): TypeST = CharST()
   }
 
@@ -540,6 +628,7 @@ object ast {
 
   case class StringType()(val pos: (Int, Int)) extends BaseType {
     override def check(st: SymbolTable): Boolean = true
+
     override def getType(st: SymbolTable): TypeST = StringST()
   }
 
@@ -548,6 +637,7 @@ object ast {
   // <ARRAY-TYPE>
   case class ArrayType(t: Type)(val pos: (Int, Int)) extends Type {
     override def check(st: SymbolTable): Boolean = true
+
     override def getType(st: SymbolTable): TypeST = ArrayST(t.getType(st))
   }
 
@@ -556,6 +646,7 @@ object ast {
   // <PAIR-TYPE>
   case class PairType(t1: Type, t2: Type)(val pos: (Int, Int)) extends Type {
     override def check(st: SymbolTable): Boolean = true
+
     override def getType(st: SymbolTable): TypeST = PairST(t1.getType(st), t2.getType(st))
   }
 
@@ -566,6 +657,7 @@ object ast {
 
   case class NestedPairType()(val pos: (Int, Int)) extends Type {
     override def check(st: SymbolTable): Boolean = true
+
     override def getType(st: SymbolTable): TypeST = PairST(AnyST(), AnyST())
   }
 
@@ -574,11 +666,13 @@ object ast {
   // <EXPR>
   sealed trait Expr extends Rvalue {
     def check(st: SymbolTable): Boolean
+
     def getType(st: SymbolTable): TypeST
   }
 
   case class IntLiter(value: Int)(val pos: (Int, Int)) extends Expr {
     def check(st: SymbolTable): Boolean = true
+
     def getType(st: SymbolTable): TypeST = IntST()
   }
 
@@ -589,6 +683,7 @@ object ast {
 
   case class BoolLiter(value: Boolean)(val pos: (Int, Int)) extends Expr {
     def check(st: SymbolTable): Boolean = true
+
     def getType(st: SymbolTable): TypeST = BoolST()
   }
 
@@ -599,6 +694,7 @@ object ast {
 
   case class CharLiter(value: Char)(val pos: (Int, Int)) extends Expr {
     def check(st: SymbolTable): Boolean = true
+
     def getType(st: SymbolTable): TypeST = CharST()
   }
 
@@ -609,6 +705,7 @@ object ast {
 
   case class StrLiter(value: String)(val pos: (Int, Int)) extends Expr {
     def check(st: SymbolTable): Boolean = true
+
     def getType(st: SymbolTable): TypeST = StringST()
   }
 
@@ -619,6 +716,7 @@ object ast {
 
   case class PairLiter()(val pos: (Int, Int)) extends Expr {
     def check(st: SymbolTable): Boolean = true
+
     def getType(st: SymbolTable): TypeST = PairST(AnyST(), AnyST())
   }
 
@@ -632,6 +730,7 @@ object ast {
       println("Checking Not")
       expr.getType(st) == BoolST() && expr.check(st)
     }
+
     def getType(st: SymbolTable): TypeST = BoolST()
   }
 
@@ -642,6 +741,7 @@ object ast {
       println("Checking Neg")
       expr.getType(st) == IntST() && expr.check(st)
     }
+
     def getType(st: SymbolTable): TypeST = IntST()
   }
 
@@ -656,6 +756,7 @@ object ast {
         case _ => false
       }
     }
+
     def getType(st: SymbolTable): TypeST = IntST()
   }
 
@@ -667,6 +768,7 @@ object ast {
       println("Checking Ord")
       expr.getType(st) == CharST() && expr.check(st)
     }
+
     def getType(st: SymbolTable): TypeST = IntST()
   }
 
@@ -678,6 +780,7 @@ object ast {
       println("Checking Chr")
       expr.getType(st) == IntST() && expr.check(st)
     }
+
     def getType(st: SymbolTable): TypeST = CharST()
   }
 
@@ -692,6 +795,7 @@ object ast {
       println("Checking Mul")
       expr1.getType(st) == IntST() && expr2.getType(st) == IntST() && expr1.check(st) && expr2.check(st)
     }
+
     def getType(st: SymbolTable): TypeST = IntST()
   }
 
@@ -702,6 +806,7 @@ object ast {
       println("Checking Div")
       expr1.getType(st) == IntST() && expr2.getType(st) == IntST() && expr1.check(st) && expr2.check(st)
     }
+
     def getType(st: SymbolTable): TypeST = IntST()
   }
 
@@ -712,6 +817,7 @@ object ast {
       println("Checking Mod")
       expr1.getType(st) == IntST() && expr2.getType(st) == IntST() && expr1.check(st) && expr2.check(st)
     }
+
     def getType(st: SymbolTable): TypeST = IntST()
   }
 
@@ -722,6 +828,7 @@ object ast {
       println("Checking Add")
       expr1.getType(st) == IntST() && expr2.getType(st) == IntST() && expr1.check(st) && expr2.check(st)
     }
+
     def getType(st: SymbolTable): TypeST = IntST()
   }
 
@@ -732,6 +839,7 @@ object ast {
       println("Checking Sub")
       expr1.getType(st) == IntST() && expr2.getType(st) == IntST() && expr1.check(st) && expr2.check(st)
     }
+
     def getType(st: SymbolTable): TypeST = IntST()
   }
 
@@ -741,8 +849,9 @@ object ast {
     def check(st: SymbolTable): Boolean = {
       println("Checking GT")
       (expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
-      expr1.getType(st) == CharST() && expr2.getType(st) == CharST()) && expr1.check(st) && expr2.check(st)
+        expr1.getType(st) == CharST() && expr2.getType(st) == CharST()) && expr1.check(st) && expr2.check(st)
     }
+
     def getType(st: SymbolTable): TypeST = BoolST()
   }
 
@@ -752,8 +861,9 @@ object ast {
     def check(st: SymbolTable): Boolean = {
       println("Checking GTE")
       (expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
-      expr1.getType(st) == CharST() && expr2.getType(st) == CharST()) && expr1.check(st) && expr2.check(st)
+        expr1.getType(st) == CharST() && expr2.getType(st) == CharST()) && expr1.check(st) && expr2.check(st)
     }
+
     def getType(st: SymbolTable): TypeST = BoolST()
   }
 
@@ -763,8 +873,9 @@ object ast {
     def check(st: SymbolTable): Boolean = {
       println("Checking LT")
       (expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
-      expr1.getType(st) == CharST() && expr2.getType(st) == CharST()) && expr1.check(st) && expr2.check(st)
+        expr1.getType(st) == CharST() && expr2.getType(st) == CharST()) && expr1.check(st) && expr2.check(st)
     }
+
     def getType(st: SymbolTable): TypeST = BoolST()
   }
 
@@ -774,8 +885,9 @@ object ast {
     def check(st: SymbolTable): Boolean = {
       println("Checking LTE")
       (expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
-      expr1.getType(st) == CharST() && expr2.getType(st) == CharST()) && expr1.check(st) && expr2.check(st)
+        expr1.getType(st) == CharST() && expr2.getType(st) == CharST()) && expr1.check(st) && expr2.check(st)
     }
+
     def getType(st: SymbolTable): TypeST = BoolST()
   }
 
@@ -786,6 +898,7 @@ object ast {
       println("Checking EQ")
       expr1.getType(st) == expr2.getType(st) && expr1.check(st) && expr2.check(st)
     }
+
     def getType(st: SymbolTable): TypeST = BoolST()
   }
 
@@ -796,6 +909,7 @@ object ast {
       println("Checking NEQ")
       expr1.getType(st) == expr2.getType(st) && expr1.check(st) && expr2.check(st)
     }
+
     def getType(st: SymbolTable): TypeST = BoolST()
   }
 
@@ -806,6 +920,7 @@ object ast {
       println("Checking And")
       expr1.getType(st) == BoolST() && expr2.getType(st) == BoolST() && expr1.check(st) && expr2.check(st)
     }
+
     def getType(st: SymbolTable): TypeST = BoolST()
   }
 
@@ -816,6 +931,7 @@ object ast {
       println("Checking Or")
       expr1.getType(st) == BoolST() && expr2.getType(st) == BoolST() && expr1.check(st) && expr2.check(st)
     }
+
     def getType(st: SymbolTable): TypeST = BoolST()
   }
 
