@@ -78,7 +78,6 @@ object ast {
         return false
       }
       val funST = new SymbolTable(Some(st))
-      funST.parentTable = Some(st)
       for (v <- vars) {
         if (!v.check(funST)) {
           return false
@@ -87,6 +86,8 @@ object ast {
       }
       println(funST)
       val funStatST = new SymbolTable(Some(funST))
+      funStatST.isFunctionBody = true
+      funStatST.functionReturnType = Some(t.getType(st))
       for (s <- stat) {
         if (!s.check(funStatST)) {
           return false
@@ -204,8 +205,13 @@ object ast {
   case class Read(lvalue: Lvalue)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable): Boolean = {
       println("Checking read: " + lvalue)
-      //TODO
-      true
+      lvalue.getType(st) match {
+        case IntST() => lvalue.check(st)
+        case BoolST() => lvalue.check(st)
+        case _ =>
+          println("Error: " + lvalue + " is not an int or bool\n")
+          false
+      }
     }
   }
 
@@ -232,7 +238,19 @@ object ast {
   case class Return(expr: Expr)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable): Boolean = {
       println("Checking return: " + expr)
-      true
+      if (!st.isFunctionBody) {
+        return false
+      }
+      val requiredType = st.functionReturnType
+      if (requiredType.isEmpty) {
+        println("Error: " + expr + " not in function body (should not be here)\n")
+        return false
+      }
+      if (expr.getType(st) != requiredType.get) {
+        println("Error: Return " + expr + " type mismatch\n")
+        return false
+      }
+      expr.check(st)
     }
   }
 

@@ -11,6 +11,8 @@ class SymbolTable(parent: Option[SymbolTable]) {
   var parentTable: Option[SymbolTable] = parent
   private val dictionary: mutable.Map[String, (TypeST, ASTNode)] = mutable.LinkedHashMap[String, (TypeST, ASTNode)]()
   private val childFunctions: ListBuffer[Map[String, SymbolTable]] = ListBuffer()
+  var isFunctionBody: Boolean = false
+  var functionReturnType: Option[TypeST] = None
 
   def add(name: String, t: TypeST, node: ASTNode): Unit = {
     dictionary += (name -> (t, node))
