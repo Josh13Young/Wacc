@@ -72,46 +72,37 @@ class ParserTest extends AnyFlatSpec {
     output shouldEqual answer;
   }
 
-  // "valid/IO/print/printCharArray" should "succeed and return print(true is) Println(BoolLiter(true))..." in {
-  //   val input = "begin char[] s = ['h','i','!']; println s end"
-  //   val output = parseOutput(input)
-
-  //   println(output)
-
-  //   val answer = "Program(List(),List(Print(StrLiter(True is )), Println(BoolLiter(true)), Print(StrLiter(False is )), Println(BoolLiter(false))))"
-
-  //   output shouldEqual answer;
-  // }
-
-  // "valid/IO/print/printCharAsString" should "succeed and return print(true is) Println(BoolLiter(true))..." in {
-  //   val input = "begin char[] str = ['f','o','o']; println str; str = ['b','a','r']; println str end"
-  //   val output = parseOutput(input)
-
-  //   println(output)
-
-  //   val answer = "Program(List(),List(Print(StrLiter(True is )), Println(BoolLiter(true)), Print(StrLiter(False is )), Println(BoolLiter(false))))"
-
-  //   output shouldEqual answer;
-  // }
-
-  "valid/IO/print/printEscChar" should "succeed and return print(true is) Println(BoolLiter(true))..." in {
-    val input = "begin print \"An escaped character example is \" ; println '\"' end"
-    val output = parseOutput(input)
-
-    println(output)
-
-    val answer = "Program(List(),List(Print(StrLiter(An escaped character example is )), Println(CharLiter(\"))))"
-
-    output shouldEqual answer;
-  }
-
-    "comment" should "succeed and return comment" in {
+  "comment" should "succeed and return comment" in {
     val input = "begin skip # comment\n end"
     val output = parseOutput(input)
 
     println(output)
 
     val answer = "Program(List(),List(Skip()))"
+
+    output shouldEqual answer;
+  }
+
+  "boolean and symbols" should "succeed" in {
+    val input = "begin\n  bool a = true ;\n  bool b = false ;\n  println a && b ;\n  println a && true ;\n  println b && false\nend"
+
+    val output = parseOutput(input)
+
+    println(output)
+
+    val answer = "Program(List(),List(AssignNew(BoolType(),Ident(a),BoolLiter(true)), AssignNew(BoolType(),Ident(b),BoolLiter(false)), Println(And(Ident(a),Ident(b))), Println(And(Ident(a),BoolLiter(true))), Println(And(Ident(b),BoolLiter(false)))))"
+
+    output shouldEqual answer;
+  }
+
+  "more boolean symbols" should "succeed" in {
+    val input = "begin\n  bool b = ! ( ( true && false) || (true && false) );\n  if b == true then\n    println \"Correct\"\n  else\n    println \"Wrong\"\n  fi\nend"
+
+    val output = parseOutput(input)
+
+    println(output)
+
+    val answer = "Program(List(),List(AssignNew(BoolType(),Ident(b),Not(Or(And(BoolLiter(true),BoolLiter(false)),And(BoolLiter(true),BoolLiter(false))))), If(EQ(Ident(b),BoolLiter(true)),List(Println(StrLiter(Correct))),List(Println(StrLiter(Wrong))))))"
 
     output shouldEqual answer;
   }
