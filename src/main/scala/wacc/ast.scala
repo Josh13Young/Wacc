@@ -112,7 +112,23 @@ object ast {
           return false
         }
       }
-      true
+      stat.last match {
+        case Return(_) =>
+          println("last statement is a return")
+          true
+        case Exit(_) =>
+          println("last statement is an exit")
+          true
+        case If(_, _, _) =>
+          println("last statement is an if")
+          val ifStat = stat.last.asInstanceOf[If]
+          ifStat.hasReturnOrExit
+        case _ =>
+          println("last statement is not a return or exit")
+          // will change this - but this is a syntax error
+          sys.exit(100)
+          false
+      }
     }
   }
 
@@ -301,6 +317,7 @@ object ast {
 
   // Stat can call another Stat, so we represent it as a list of Stat
   case class If(cond: Expr, trueStat: List[Stat], falseStat: List[Stat])(val pos: (Int, Int)) extends Stat {
+    var hasReturnOrExit = false;
     override def check(st: SymbolTable): Boolean = {
       println("Checking if: " + cond + "...")
       if (cond.getType(st) != BoolST()) {
@@ -312,19 +329,38 @@ object ast {
         return false
       }
       val trueST = new SymbolTable(Option(st))
+      var trueHasReturnOrExit = false
       trueST.isFunctionBody = st.isFunctionBody
       trueST.functionReturnType = st.functionReturnType
       if (!trueStat.forall(_.check(trueST))) {
         println("Error: " + trueStat + " check failed\n")
         return false
       }
+      trueStat.last match {
+        case Return(_) => trueHasReturnOrExit = true
+        case Exit(_) => trueHasReturnOrExit = true
+        case If(_, _, _) =>
+          val lastIf = trueStat.last.asInstanceOf[If]
+          trueHasReturnOrExit = lastIf.hasReturnOrExit
+        case _ =>
+      }
       val falseST = new SymbolTable(Option(st))
+      var falseHasReturnOrExit = false
       falseST.isFunctionBody = st.isFunctionBody
       falseST.functionReturnType = st.functionReturnType
       if (!falseStat.forall(_.check(falseST))) {
         println("Error: " + falseStat + " check failed\n")
         return false
       }
+      falseStat.last match {
+        case Return(_) => falseHasReturnOrExit = true
+        case Exit(_) => falseHasReturnOrExit = true
+        case If(_, _, _) =>
+          val lastIf = falseStat.last.asInstanceOf[If]
+          falseHasReturnOrExit = lastIf.hasReturnOrExit
+        case _ =>
+      }
+      hasReturnOrExit = trueHasReturnOrExit && falseHasReturnOrExit
       true
     }
   }
