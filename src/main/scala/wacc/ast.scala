@@ -122,7 +122,17 @@ object ast {
         case If(_, _, _) =>
           println("last statement is an if")
           val ifStat = stat.last.asInstanceOf[If]
-          ifStat.hasReturnOrExit
+          if (!ifStat.hasReturnOrExit) {
+            sys.exit(100)
+          }
+          true
+        case BeginStat(_) =>
+          println("last statement is a begin")
+          val beginStat = stat.last.asInstanceOf[BeginStat]
+          if (!beginStat.hasReturnOrExit) {
+            sys.exit(100)
+          }
+          true
         case _ =>
           println("last statement is not a return or exit")
           // will change this - but this is a syntax error
@@ -358,6 +368,9 @@ object ast {
         case If(_, _, _) =>
           val lastIf = falseStat.last.asInstanceOf[If]
           falseHasReturnOrExit = lastIf.hasReturnOrExit
+        case BeginStat(_) =>
+          val lastBegin = falseStat.last.asInstanceOf[BeginStat]
+          falseHasReturnOrExit = lastBegin.hasReturnOrExit
         case _ =>
       }
       hasReturnOrExit = trueHasReturnOrExit && falseHasReturnOrExit
@@ -398,6 +411,7 @@ object ast {
   }
 
   case class BeginStat(stat: List[Stat])(val pos: (Int, Int)) extends Stat {
+    var hasReturnOrExit = false;
     override def check(st: SymbolTable): Boolean = {
       println("Checking begin: " + stat + "...")
       val beginST = new SymbolTable(Option(st))
@@ -406,6 +420,17 @@ object ast {
       if (!stat.forall(_.check(beginST))) {
         println("Error: " + stat + " check failed\n")
         return false
+      }
+      stat.last match {
+        case Return(_) => hasReturnOrExit = true
+        case Exit(_) => hasReturnOrExit = true
+        case If(_, _, _) =>
+          val lastIf = stat.last.asInstanceOf[If]
+          hasReturnOrExit = lastIf.hasReturnOrExit
+        case BeginStat(_) =>
+          val lastBegin = stat.last.asInstanceOf[BeginStat]
+          hasReturnOrExit = lastBegin.hasReturnOrExit
+        case _ =>
       }
       true
     }
