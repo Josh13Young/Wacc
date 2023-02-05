@@ -219,7 +219,7 @@ object ast {
   case class Assign(lvalue: Lvalue, rvalue: Rvalue)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable): Boolean = {
       println("Checking assign: " + lvalue)
-      if (isNestedPair(lvalue.asInstanceOf[PairElem]) && rvalue.isInstanceOf[PairElem]) {
+      if (isNestedPair(lvalue) && isNestedPair(rvalue)) {
         return false
       }
       if (!lvalue.check(st)) {
@@ -241,7 +241,7 @@ object ast {
       true
     }
 
-    private def isNestedPair(pair: PairElem): Boolean = {
+    private def isNestedPair(pair: ASTNode): Boolean = {
       pair match {
         case FstElem(FstElem(_)) => true
         case FstElem(SndElem(_)) => true
