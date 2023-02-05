@@ -219,6 +219,9 @@ object ast {
   case class Assign(lvalue: Lvalue, rvalue: Rvalue)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable): Boolean = {
       println("Checking assign: " + lvalue)
+      if (isNestedPair(lvalue.asInstanceOf[PairElem]) && rvalue.isInstanceOf[PairElem]) {
+        return false
+      }
       if (!lvalue.check(st)) {
         println("Error: " + lvalue + " LHS check failed\n")
         return false
@@ -236,6 +239,16 @@ object ast {
         return false
       }
       true
+    }
+
+    private def isNestedPair(pair: PairElem): Boolean = {
+      pair match {
+        case FstElem(FstElem(_)) => true
+        case FstElem(SndElem(_)) => true
+        case SndElem(FstElem(_)) => true
+        case SndElem(SndElem(_)) => true
+        case _ => false
+      }
     }
   }
 
