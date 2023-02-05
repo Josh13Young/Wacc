@@ -25,7 +25,7 @@ object lexer {
       escapeSequences = EscapeDesc.plain.copy(
         literals = Set('\'', '\"', '\\'),
         singleMap = Map(
-          '0' -> 0x00, // ?
+          '0' -> 0x00,
           'b' -> 0x08,
           't' -> 0x09,
           'n' -> 0x0A,
