@@ -12,7 +12,7 @@ class ParserTest extends AnyFlatSpec {
     val input = "begin exit -1 end"
     val output = parseOutput(input)   
 
-    val answer = "Program(List(),List(Exit(Neg(IntLiter(1)))))"
+    val answer = "Program(List(),List(Exit(IntLiter(-1))))"
 
     output shouldEqual answer;
   }
