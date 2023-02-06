@@ -46,19 +46,21 @@ object parser {
     attempt(baseType <~ notFollowedBy("[")) | arrayType
 
   // <expr>
-  private lazy val atom: Parsley[Expr] = "(" ~> expr <~ ")" | attempt(arrayElem) | ident |
-    stringLiter | intLiter | pairLiter | charLiter | boolLiter
+  private lazy val atom: Parsley[Expr] = intLiter | "(" ~> expr <~ ")" | attempt(arrayElem) | ident |
+    stringLiter | pairLiter | charLiter | boolLiter | negate
   private lazy val expr: Parsley[Expr] = precedence[Expr](atom)(
-    Ops(Prefix)(Not <# "!", Neg <# "-", Len <# "len", Ord <# "ord", Chr <# "chr"),
+    Ops(Prefix)(Not <# "!", Len <# "len", Ord <# "ord", Chr <# "chr"),
     Ops(InfixL)(Mul <# "*", Div <# "/", Mod <# "%"),
     Ops(InfixL)(Add <# "+", Sub <# "-"),
     Ops(InfixL)(EQ <# "==", NEQ <# "!=", GT <# ">", GTE <# ">=", LT <# "<", LTE <# "<="),
     Ops(InfixL)(And <# "&&"),
-    Ops(InfixL)(Or <# "||"))
+    Ops(InfixL)(Or <# "||"),
+  )
 
   private lazy val ident = Ident(IDF)
+  private lazy val negate = Neg("-" ~> expr)
   private lazy val arrayElem = ArrayElem(ident, endBy1("[" ~> expr, "]"))
-  private lazy val intLiter = optional("+") ~> IntLiter(INT)
+  private lazy val intLiter = IntLiter(INT)
   private lazy val boolLiter = BoolLiter("true" ~> pure(true) | "false" ~> pure(false))
   private lazy val charLiter = CharLiter(CHR)
   private lazy val stringLiter = StrLiter(STR)
