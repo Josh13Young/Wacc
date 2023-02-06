@@ -93,6 +93,7 @@ class ParserTest extends AnyFlatSpec {
 
   "more boolean symbols" should "succeed" in {
     val input = "begin\n  bool b = ! ( ( true && false) || (true && false) );\n  if b == true then\n    println \"Correct\"\n  else\n    println \"Wrong\"\n  fi\nend"
+  }
 
   "valid/IO/print/printEscChar" should "succeed and return print(true is) Println(BoolLiter(true))..." in {
     val input = "begin print \"An escaped character example is \" ; println '\\\"' end"
@@ -100,7 +101,7 @@ class ParserTest extends AnyFlatSpec {
 
     println(output)
 
-    val answer = "Program(List(),List(AssignNew(BoolType(),Ident(b),Not(Or(And(BoolLiter(true),BoolLiter(false)),And(BoolLiter(true),BoolLiter(false))))), If(EQ(Ident(b),BoolLiter(true)),List(Println(StrLiter(Correct))),List(Println(StrLiter(Wrong))))))"
+    val answer = "Program(List(),List(Print(StrLiter(An escaped character example is )), Println(CharLiter(\"))))"
 
     output shouldEqual answer;
   }
