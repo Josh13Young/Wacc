@@ -38,6 +38,14 @@ object ast {
     override def con(pos: (Int, Int)): (A, B) => C = apply(_, _)(pos)
   }
 
+  trait ParserBridgePos3[-A, -B, -C, +D] extends ParserBridgePos[(A, B, C) => D] {
+    def apply(x: A, y: B, z: C)(pos: (Int, Int)): D
+
+    def apply(x: Parsley[A], y: => Parsley[B], z: => Parsley[C]): Parsley[D] = pos <**> (x, y, z).zipped(apply(_, _, _) _)
+
+    override def con(pos: (Int, Int)): (A, B, C) => D = apply(_, _, _)(pos)
+  }
+
   // node that holds position information (line, column)
   sealed trait ASTNode {
     val pos: (Int, Int)
@@ -74,10 +82,7 @@ object ast {
     }
   }
 
-  object Program {
-    def apply(functions: Parsley[List[Func]], stat: Parsley[List[Stat]]): Parsley[Program] =
-      pos <**> (functions, stat).zipped(Program(_, _) _)
-  }
+  object Program extends ParserBridgePos2[List[Func], List[Stat], Program]
 
   // <FUNC>
 
@@ -164,10 +169,7 @@ object ast {
     def getType(st: SymbolTable): TypeST = t.getType(st)
   }
 
-  object Param {
-    def apply(t: Parsley[Type], ident: Parsley[Ident]): Parsley[Param] =
-      pos <**> (t, ident).zipped(Param(_, _) _)
-  }
+  object Param extends ParserBridgePos2[Type, Ident, Param]
 
   // <STAT>
   sealed trait Stat extends ASTNode {
@@ -211,10 +213,7 @@ object ast {
     }
   }
 
-  object AssignNew {
-    def apply(t: Parsley[Type], ident: Parsley[Ident], rvalue: Parsley[Rvalue]): Parsley[AssignNew] =
-      pos <**> (t, ident, rvalue).zipped(AssignNew(_, _, _) _)
-  }
+  object AssignNew extends ParserBridgePos3[Type, Ident, Rvalue, AssignNew]
 
   case class Assign(lvalue: Lvalue, rvalue: Rvalue)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable): Boolean = {
@@ -252,10 +251,7 @@ object ast {
     }
   }
 
-  object Assign {
-    def apply(lvalue: Parsley[Lvalue], rvalue: Parsley[Rvalue]): Parsley[Assign] =
-      pos <**> (lvalue, rvalue).zipped(Assign(_, _) _)
-  }
+  object Assign extends ParserBridgePos2[Lvalue, Rvalue, Assign]
 
   case class Read(lvalue: Lvalue)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable): Boolean = {
@@ -270,10 +266,7 @@ object ast {
     }
   }
 
-  object Read {
-    def apply(lvalue: Parsley[Lvalue]): Parsley[Read] =
-      pos <**> lvalue.map(Read(_) _)
-  }
+  object Read extends ParserBridgePos1[Lvalue, Read]
 
   case class Free(expr: Expr)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable): Boolean = {
@@ -340,7 +333,7 @@ object ast {
 
   // Stat can call another Stat, so we represent it as a list of Stat
   case class If(cond: Expr, trueStat: List[Stat], falseStat: List[Stat])(val pos: (Int, Int)) extends Stat {
-    var hasReturnOrExit = false;
+    var hasReturnOrExit = false
     override def check(st: SymbolTable): Boolean = {
       println("Checking if: " + cond + "...")
       if (cond.getType(st) != BoolST()) {
@@ -391,10 +384,7 @@ object ast {
     }
   }
 
-  object If {
-    def apply(cond: Parsley[Expr], trueStat: Parsley[List[Stat]], falseStat: Parsley[List[Stat]]): Parsley[If] =
-      pos <**> (cond, trueStat, falseStat).zipped(If(_, _, _) _)
-  }
+  object If extends ParserBridgePos3[Expr, List[Stat], List[Stat], If]
 
   case class While(cond: Expr, stat: List[Stat])(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable): Boolean = {
@@ -418,13 +408,10 @@ object ast {
     }
   }
 
-  object While {
-    def apply(cond: Parsley[Expr], stat: Parsley[List[Stat]]): Parsley[While] =
-      pos <**> (cond, stat).zipped(While(_, _) _)
-  }
+  object While extends ParserBridgePos2[Expr, List[Stat], While]
 
   case class BeginStat(stat: List[Stat])(val pos: (Int, Int)) extends Stat {
-    var hasReturnOrExit = false;
+    var hasReturnOrExit = false
     override def check(st: SymbolTable): Boolean = {
       println("Checking begin: " + stat + "...")
       val beginST = new SymbolTable(Option(st))
@@ -449,10 +436,7 @@ object ast {
     }
   }
 
-  object BeginStat {
-    def apply(stat: Parsley[List[Stat]]): Parsley[BeginStat] =
-      pos <**> stat.map(BeginStat(_) _)
-  }
+  object BeginStat extends ParserBridgePos1[List[Stat], BeginStat]
 
   // <LVALUE>
   sealed trait Lvalue extends ASTNode {
@@ -487,10 +471,7 @@ object ast {
     }
   }
 
-  object Ident {
-    def apply(name: Parsley[String]): Parsley[Ident] =
-      pos <**> name.map(Ident(_) _)
-  }
+  object Ident extends ParserBridgePos1[String, Ident]
 
   // <ARRAY-ELEM>
   case class ArrayElem(ident: Ident, exprList: List[Expr])(val pos: (Int, Int)) extends Lvalue with Expr {
@@ -524,10 +505,7 @@ object ast {
     }
   }
 
-  object ArrayElem {
-    def apply(ident: Parsley[Ident], exprList: Parsley[List[Expr]]): Parsley[ArrayElem] =
-      pos <**> (ident, exprList).zipped(ArrayElem(_, _) _)
-  }
+  object ArrayElem extends ParserBridgePos2[Ident, List[Expr], ArrayElem]
 
   // <PAIR-ELEM>
   sealed trait PairElem extends Lvalue with Rvalue
@@ -555,10 +533,7 @@ object ast {
     }
   }
 
-  object FstElem {
-    def apply(lvalue: Parsley[Lvalue]): Parsley[FstElem] =
-      pos <**> lvalue.map(FstElem(_) _)
-  }
+  object FstElem extends ParserBridgePos1[Lvalue, FstElem]
 
   case class SndElem(lvalue: Lvalue)(val pos: (Int, Int)) extends PairElem {
     override def check(st: SymbolTable): Boolean = {
@@ -583,10 +558,7 @@ object ast {
     }
   }
 
-  object SndElem {
-    def apply(lvalue: Parsley[Lvalue]): Parsley[SndElem] =
-      pos <**> lvalue.map(SndElem(_) _)
-  }
+  object SndElem extends ParserBridgePos1[Lvalue, SndElem]
 
   // <RVALUE>
   sealed trait Rvalue extends ASTNode {
@@ -626,10 +598,7 @@ object ast {
     }
   }
 
-  object ArrayLiter {
-    def apply(exprList: Parsley[List[Expr]]): Parsley[ArrayLiter] =
-      pos <**> exprList.map(ArrayLiter(_) _)
-  }
+  object ArrayLiter extends ParserBridgePos1[List[Expr], ArrayLiter]
 
   case class NewPair(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends Rvalue {
     override def check(st: SymbolTable): Boolean = {
@@ -642,10 +611,7 @@ object ast {
     }
   }
 
-  object NewPair {
-    def apply(expr1: Parsley[Expr], expr2: Parsley[Expr]): Parsley[NewPair] =
-      pos <**> (expr1, expr2).zipped(NewPair(_, _) _)
-  }
+  object NewPair extends ParserBridgePos2[Expr, Expr, NewPair]
 
   case class Call(ident: Ident, argList: List[Expr])(val pos: (Int, Int)) extends Rvalue {
     override def check(st: SymbolTable): Boolean = {
@@ -694,10 +660,7 @@ object ast {
     }
   } // args-list only appears once
 
-  object Call {
-    def apply(ident: Parsley[Ident], argList: Parsley[List[Expr]]): Parsley[Call] =
-      pos <**> (ident, argList).zipped(Call(_, _) _)
-  }
+  object Call extends ParserBridgePos2[Ident, List[Expr], Call]
 
   // <TYPE>
   sealed trait Type extends ASTNode {
@@ -757,10 +720,7 @@ object ast {
     override def getType(st: SymbolTable): TypeST = PairST(t1.getType(st), t2.getType(st))
   }
 
-  object PairType {
-    def apply(t1: Parsley[Type], t2: Parsley[Type]): Parsley[PairType] =
-      pos <**> (t1, t2).zipped(PairType(_, _) _)
-  }
+  object PairType extends ParserBridgePos2[Type, Type, PairType]
 
   case class NestedPairType()(val pos: (Int, Int)) extends Type {
     override def check(st: SymbolTable): Boolean = true
@@ -783,10 +743,7 @@ object ast {
     def getType(st: SymbolTable): TypeST = IntST()
   }
 
-  object IntLiter {
-    def apply(value: Parsley[Int]): Parsley[IntLiter] =
-      pos <**> value.map(IntLiter(_) _)
-  }
+  object IntLiter extends ParserBridgePos1[Int, IntLiter]
 
   case class BoolLiter(value: Boolean)(val pos: (Int, Int)) extends Expr {
     def check(st: SymbolTable): Boolean = true
@@ -794,10 +751,7 @@ object ast {
     def getType(st: SymbolTable): TypeST = BoolST()
   }
 
-  object BoolLiter {
-    def apply(value: Parsley[Boolean]): Parsley[BoolLiter] =
-      pos <**> value.map(BoolLiter(_) _)
-  }
+  object BoolLiter extends ParserBridgePos1[Boolean, BoolLiter]
 
   case class CharLiter(value: Char)(val pos: (Int, Int)) extends Expr {
     def check(st: SymbolTable): Boolean = true
@@ -805,10 +759,7 @@ object ast {
     def getType(st: SymbolTable): TypeST = CharST()
   }
 
-  object CharLiter {
-    def apply(value: Parsley[Char]): Parsley[CharLiter] =
-      pos <**> value.map(CharLiter(_) _)
-  }
+  object CharLiter extends ParserBridgePos1[Char, CharLiter]
 
   case class StrLiter(value: String)(val pos: (Int, Int)) extends Expr {
     def check(st: SymbolTable): Boolean = true
@@ -816,10 +767,7 @@ object ast {
     def getType(st: SymbolTable): TypeST = StringST()
   }
 
-  object StrLiter {
-    def apply(value: Parsley[String]): Parsley[StrLiter] =
-      pos <**> value.map(StrLiter(_) _)
-  }
+  object StrLiter extends ParserBridgePos1[String, StrLiter]
 
   case class PairLiter()(val pos: (Int, Int)) extends Expr {
     def check(st: SymbolTable): Boolean = true
