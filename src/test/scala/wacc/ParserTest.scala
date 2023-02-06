@@ -94,6 +94,8 @@ class ParserTest extends AnyFlatSpec {
   "more boolean symbols" should "succeed" in {
     val input = "begin\n  bool b = ! ( ( true && false) || (true && false) );\n  if b == true then\n    println \"Correct\"\n  else\n    println \"Wrong\"\n  fi\nend"
 
+  "valid/IO/print/printEscChar" should "succeed and return print(true is) Println(BoolLiter(true))..." in {
+    val input = "begin print \"An escaped character example is \" ; println '\\\"' end"
     val output = parseOutput(input)
 
     println(output)
