@@ -95,7 +95,7 @@ class ParserTest extends AnyFlatSpec {
   // }
 
   "valid/IO/print/printEscChar" should "succeed and return print(true is) Println(BoolLiter(true))..." in {
-    val input = "begin print \"An escaped character example is \" ; println '\"' end"
+    val input = "begin print \"An escaped character example is \" ; println '\\\"' end"
     val output = parseOutput(input)
 
     println(output)

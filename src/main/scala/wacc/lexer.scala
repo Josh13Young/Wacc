@@ -3,6 +3,7 @@ package wacc
 import parsley.Parsley
 import parsley.token.descriptions.text.{EscapeDesc, TextDesc}
 import parsley.token.descriptions.{LexicalDesc, NameDesc, SpaceDesc}
+import parsley.token.predicate.Basic
 import parsley.token.symbol.ImplicitSymbol
 import parsley.token.{Lexer, predicate}
 
@@ -32,7 +33,9 @@ object lexer {
           'f' -> 0x0C,
           'r' -> 0x0D,
         )
-      )
+      ),
+      graphicCharacter = Basic(c => c >= ' '.toInt && c <= '~'.toInt
+        && c != '"'.toInt && c != '\\'.toInt && c != '\''.toInt)
     ),
     symbolDesc = LexicalDesc.plain.symbolDesc.copy(
       hardKeywords = keywords,
@@ -42,7 +45,7 @@ object lexer {
   private val lexer = new Lexer(desc)
 
   val IDF: Parsley[String] = lexer.lexeme.names.identifier
-  val INT: Parsley[Int] = lexer.lexeme.numeric.unsigned.decimal32 // int32, 32-bit signed integer
+  val INT: Parsley[Int] = lexer.lexeme.numeric.signed.decimal32 // int32, 32-bit signed integer
   val CHR: Parsley[Char] = lexer.lexeme.text.character.ascii
   val STR: Parsley[String] = lexer.lexeme.text.string.ascii
 
