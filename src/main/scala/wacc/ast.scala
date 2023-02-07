@@ -353,6 +353,7 @@ object ast {
   // Stat can call another Stat, so we represent it as a list of Stat
   case class If(cond: Expr, trueStat: List[Stat], falseStat: List[Stat])(val pos: (Int, Int)) extends Stat {
     var hasReturnOrExit = false
+
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking if: " + cond + "...")
       val condType = cond.getType(st)
@@ -434,6 +435,7 @@ object ast {
 
   case class BeginStat(stat: List[Stat])(val pos: (Int, Int)) extends Stat {
     var hasReturnOrExit = false
+
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking begin: " + stat + "...")
       val beginST = new SymbolTable(Option(st))
@@ -903,7 +905,7 @@ object ast {
       println("Checking Mul")
       if (expr1.getType(st) != IntST() || expr2.getType(st) != IntST()) {
         BinaryOperatorError(pos, "*", Set("int"))
-      return false
+        return false
       }
       expr1.check(st) && expr2.check(st)
     }

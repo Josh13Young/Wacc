@@ -2,7 +2,7 @@ package wacc
 
 object STType {
   sealed trait TypeST {
-     def toString: String
+    def toString: String
   }
 
   case class IntST() extends TypeST {
@@ -39,16 +39,16 @@ object STType {
 
   def typeCompare(t1: TypeST, t2: TypeST): TypeST =
     (t1, t2) match {
-    case (IntST(), IntST()) => IntST()
-    case (BoolST(), BoolST()) => BoolST()
-    case (CharST(), CharST()) => CharST()
-    case (StringST(), StringST()) => StringST()
-    case (ArrayST(t1), ArrayST(t2)) => ArrayST(typeCompare(t1, t2))
-    case (PairST(t11, t12), PairST(t21, t22)) => PairST(typeCompare(t11, t21), typeCompare(t12, t22))
-    case (AnyST(), x) => x
-    case (x, AnyST()) => x
-    case _ => VoidST()
-  }
+      case (IntST(), IntST()) => IntST()
+      case (BoolST(), BoolST()) => BoolST()
+      case (CharST(), CharST()) => CharST()
+      case (StringST(), StringST()) => StringST()
+      case (ArrayST(t1), ArrayST(t2)) => ArrayST(typeCompare(t1, t2))
+      case (PairST(t11, t12), PairST(t21, t22)) => PairST(typeCompare(t11, t21), typeCompare(t12, t22))
+      case (AnyST(), x) => x
+      case (x, AnyST()) => x
+      case _ => VoidST()
+    }
 
   def typeCheck(t: TypeST): Boolean = t match {
     case VoidST() => false
