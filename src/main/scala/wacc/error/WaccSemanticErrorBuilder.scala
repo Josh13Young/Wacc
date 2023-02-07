@@ -29,21 +29,21 @@ object WaccSemanticErrorBuilder {
   }
 
   case object UnaryOperatorError {
-    def apply(pos: (Int, Int), operator: String, t: String)(implicit errors: SemanticError): Unit = {
-      WaccSemanticErrorBuilder(pos, s"Unary operator $operator can only be applied to $t")
+    def apply(pos: (Int, Int), operator: String, t: String, exprType: String)(implicit errors: SemanticError): Unit = {
+      WaccSemanticErrorBuilder(pos, s"Unary operator \"$operator\" can only be applied to $t, type $exprType given")
     }
   }
 
   case object BinaryOperatorError {
-    def apply(pos: (Int, Int), operator: String, t: Set[String])(implicit errors: SemanticError): Unit = {
+    def apply(pos: (Int, Int), operator: String, t: Set[String], t1: String, t2: String)(implicit errors: SemanticError): Unit = {
       val types = t.mkString(", ")
-      WaccSemanticErrorBuilder(pos, s"Binary operator $operator can only be applied to $types")
+      WaccSemanticErrorBuilder(pos, s"Binary operator \"$operator\" can only be applied to $types, types $t1 and $t2 given")
     }
   }
 
   case object TypeMismatchError {
     def apply(pos: (Int, Int), t1: String, t2: String)(implicit errors: SemanticError): Unit = {
-      WaccSemanticErrorBuilder(pos, s"Type mismatch: $t1 and $t2")
+      WaccSemanticErrorBuilder(pos, s"Type mismatch.\nGiven: $t2, Required: $t1")
     }
   }
 
@@ -55,7 +55,7 @@ object WaccSemanticErrorBuilder {
 
   case object CondBoolError {
     def apply(pos: (Int, Int), name: String)(implicit errors: SemanticError): Unit = {
-      WaccSemanticErrorBuilder(pos, s"Condition must be of type bool, type $name given")
+      WaccSemanticErrorBuilder(pos, s"Condition must be type of bool, type $name given")
     }
   }
 }
