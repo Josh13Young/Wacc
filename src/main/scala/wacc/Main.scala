@@ -18,8 +18,8 @@ object Main {
           println("Program is semantically correct")
         } else {
           println("Program is semantically incorrect")
-          println(seb.errors)
-           sys.exit(200)
+          seb.printAll()
+          sys.exit(200)
         }
       case Failure(msg) =>
         println(msg)

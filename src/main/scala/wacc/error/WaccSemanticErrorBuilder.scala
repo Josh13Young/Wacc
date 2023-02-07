@@ -1,6 +1,6 @@
 package wacc.error
 
-import wacc.error.Error.WaccError
+import wacc.error.Error.{WaccError, WaccLineInfo, WaccSemanticError}
 
 import scala.collection.mutable
 
@@ -9,15 +9,21 @@ object WaccSemanticErrorBuilder {
     val line = pos._1 - 1
     val linesBefore = if (line - 2 >= 0) errors.program.slice(line - 2, line) else errors.program.slice(0, line)
     val linesAfter = if (line + 2 < errors.program.length) errors.program.slice(line + 1, line + 2) else errors.program.slice(line + 1, errors.program.length)
-    val error = WaccError(pos, Error.WaccSemanticError(msg, Error.WaccLineInfo(errors.program(line), linesBefore, linesAfter, pos._2 - 1, 1)))
+    val error = WaccError(pos, WaccSemanticError(msg, WaccLineInfo(errors.program(line), linesBefore, linesAfter, pos._2 - 1, 1)))
     errors.add(error)
   }
 
   class SemanticError {
     var program: List[String] = List()
     var errors: mutable.Set[WaccError] = mutable.Set()
-    def add (error: WaccError): Unit = {
+    def add(error: WaccError): Unit = {
       errors += error
+    }
+
+    def printAll(): Unit = {
+      for (e <- errors) {
+        println(e)
+      }
     }
   }
 
