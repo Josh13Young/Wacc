@@ -45,4 +45,10 @@ object WaccSemanticErrorBuilder {
       WaccSemanticErrorBuilder(pos, s"Identifier $name is already defined")
     }
   }
+
+  case object CondBoolError {
+    def apply(pos:(Int, Int), name: String)(implicit errors:SemanticError): Unit = {
+      WaccSemanticErrorBuilder(pos, s"Condition must be of type bool, type $name given")
+    }
+  }
 }

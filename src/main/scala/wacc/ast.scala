@@ -245,13 +245,15 @@ object ast {
       true
     }
 
-    private def isNestedPair(pair: ASTNode): Boolean = {
+    private def isNestedPair(pair: ASTNode)(implicit errors: SemanticError): Boolean = {
       pair match {
         case FstElem(FstElem(_)) => true
         case FstElem(SndElem(_)) => true
         case SndElem(FstElem(_)) => true
         case SndElem(SndElem(_)) => true
-        case _ => false
+        case _ =>
+          WaccSemanticErrorBuilder(pos, "Nested pairs are not allowed")
+          false
       }
     }
   }
@@ -295,11 +297,12 @@ object ast {
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking return: " + expr)
       if (!st.isFunctionBody) {
+        WaccSemanticErrorBuilder(pos, "Return " + expr + " not in function body (should not be here)")
         return false
       }
       val requiredType = st.functionReturnType
       if (requiredType.isEmpty) {
-        WaccSemanticErrorBuilder(pos, "Return " + expr + " not in function body (should not be here)")
+        WaccSemanticErrorBuilder(pos, "Return " + expr + " wrong return type")
         println("Error: " + expr + " not in function body (should not be here)\n")
         return false
       }
@@ -318,7 +321,7 @@ object ast {
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking exit: " + expr)
       if (expr.getType(st) != IntST()) {
-        WaccSemanticErrorBuilder(pos, "Exit requires an array or pair, given " + expr.getType(st))
+        WaccSemanticErrorBuilder(pos, "Exit requires an int, given " + expr.getType(st))
         return false
       }
       expr.check(st)
@@ -350,7 +353,9 @@ object ast {
     var hasReturnOrExit = false
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking if: " + cond + "...")
-      if (cond.getType(st) != BoolST()) {
+      val condType = cond.getType(st)
+      if (condType != BoolST()) {
+        CondBoolError(pos, condType.toString)
         println("Error: " + cond + " is not a boolean\n")
         return false
       }
@@ -379,7 +384,6 @@ object ast {
       falseST.isFunctionBody = st.isFunctionBody
       falseST.functionReturnType = st.functionReturnType
       if (!falseStat.forall(_.check(falseST))) {
-        WaccSemanticErrorBuilder(pos, falseStat + " check failed")
         println("Error: " + falseStat + " check failed\n")
         return false
       }
@@ -405,6 +409,7 @@ object ast {
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking while: " + cond + "...")
       if (cond.getType(st) != BoolST()) {
+        CondBoolError(pos, cond.getType(st).toString)
         println("Error: " + cond + " is not a boolean\n")
         return false
       }
@@ -433,7 +438,6 @@ object ast {
       beginST.isFunctionBody = st.isFunctionBody
       beginST.functionReturnType = st.functionReturnType
       if (!stat.forall(_.check(beginST))) {
-        WaccSemanticErrorBuilder(pos, stat + " check failed")
         println("Error: " + stat + " check failed\n")
         return false
       }
@@ -467,6 +471,7 @@ object ast {
       println("Checking ident: " + name)
       val query = st.lookupAll(name)
       if (query.isEmpty) {
+        WaccSemanticErrorBuilder(pos, "Ident " + name + " is not declared")
         println("Error: " + name + " is not declared")
         false
       } else {
@@ -479,7 +484,7 @@ object ast {
       val query = st.lookupAll(name)
       if (query.isEmpty) {
         println("Error: " + name + " is not declared (type)")
-        null
+        VoidST()
       } else {
         println("Ident " + name + " is declared (type)")
         query.head._1
@@ -497,6 +502,7 @@ object ast {
       ident.check(st)
       for (expr <- exprList) {
         if (expr.getType(st) != IntST()) {
+          WaccSemanticErrorBuilder(pos, "Array index must be of type int")
           println("Error: array index must be of type int")
           result = false
         }
@@ -514,7 +520,7 @@ object ast {
           case ArrayST(t) => identType = t
           case _ =>
             println("Error: " + ident + " is not an array")
-            identType = null
+            identType = VoidST()
         }
       }
       identType
@@ -533,6 +539,7 @@ object ast {
         case PairST(_, _) =>
           lvalue.check(st)
         case _ =>
+          WaccSemanticErrorBuilder(pos, lvalue + " is not a pair")
           println("Error: " + lvalue + " is not a pair")
           false
       }
@@ -558,6 +565,7 @@ object ast {
         case PairST(_, _) =>
           lvalue.check(st)
         case _ =>
+          WaccSemanticErrorBuilder(pos, lvalue + " is not a pair")
           println("Error: " + lvalue + " is not a pair")
           false
       }
@@ -594,6 +602,7 @@ object ast {
         val elemType = exprList.head.getType(st)
         for (expr <- exprList) {
           if (expr.getType(st) != elemType) {
+            WaccSemanticErrorBuilder(pos, "Array elements must be of the same type")
             println("Error: array elements must be of the same type")
             result = false
           }
