@@ -21,4 +21,16 @@ object WaccSemanticErrorBuilder {
     }
   }
 
+  case object UnaryOperatorError {
+    def apply(pos: (Int,Int), operator: String, t: String)(implicit errors:SemanticError): Unit = {
+      WaccSemanticErrorBuilder(pos, s"Unary operator $operator can only be applied to $t")
+    }
+  }
+
+  case object BinaryOperatorError {
+    def apply(pos:(Int, Int), operator: String, t: Set[String])(implicit errors:SemanticError): Unit = {
+      val types = t.mkString(", ")
+      WaccSemanticErrorBuilder(pos, s"Binary operator $operator can only be applied to $types")
+    }
+  }
 }
