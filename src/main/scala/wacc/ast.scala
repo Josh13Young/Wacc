@@ -93,6 +93,7 @@ object ast {
       println("Checking function: " + ident.name)
       val query = st.lookup(ident.name + "()")
       if (query.isDefined) {
+        WaccSemanticErrorBuilder(pos, "Function " + ident.name + " already defined")
         println("Error: function " + ident.name + " already defined\n")
         return null
       }
@@ -162,6 +163,7 @@ object ast {
       println("Checking param: " + ident.name)
       val query = st.lookup(ident.name)
       if (query.isDefined) {
+        WaccSemanticErrorBuilder(pos, "Error: " + ident.name + " already defined")
         println("Error: " + ident.name + " already defined\n")
         return false
       }
@@ -643,6 +645,7 @@ object ast {
       println("Checking Call")
       val query = st.locateST(ident.name + "()")
       if (query.isEmpty) {
+        WaccSemanticErrorBuilder(pos, ident + " is not defined")
         println("Error: " + ident + " is not defined")
         return false
       }
@@ -655,6 +658,7 @@ object ast {
       println("Found child function of args num: " + dict.length)
       println("Given args:" + argList.length)
       if (dict.length != argList.length) {
+        WaccSemanticErrorBuilder(pos, ident + " has wrong number of arguments")
         println("Error: " + ident + " has wrong number of arguments")
         return false
       }
@@ -667,6 +671,7 @@ object ast {
         val paramType = dict(i)._1
         println("paramType: " + paramType)
         if (typeCompare(argType, paramType) == VoidST()) {
+          WaccSemanticErrorBuilder(pos, ident + " has wrong type of arguments")
           println("Error: " + ident + " has wrong type of arguments")
           return false
         }
