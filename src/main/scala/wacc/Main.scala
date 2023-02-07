@@ -16,9 +16,12 @@ object Main {
         if (x.check(new SymbolTable(None))(seb)) {
           println("Program is semantically correct")
         } else {
-          println("Program is semantically incorrect")
           seb.printAll()
-          sys.exit(200)
+          if (seb.isSemantic) {
+            sys.exit(200)
+          } else {
+            sys.exit(100)
+          }
         }
       case Failure(msg) =>
         println(msg)

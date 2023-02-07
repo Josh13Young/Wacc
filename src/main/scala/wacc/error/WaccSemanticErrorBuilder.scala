@@ -14,8 +14,9 @@ object WaccSemanticErrorBuilder {
   }
 
   class SemanticError {
+    var isSemantic: Boolean = true
     var program: List[String] = List()
-    var errors: mutable.Set[WaccError] = mutable.Set()
+    var errors: mutable.ListBuffer[WaccError] = mutable.ListBuffer()
 
     def add(error: WaccError): Unit = {
       errors += error
@@ -30,20 +31,34 @@ object WaccSemanticErrorBuilder {
 
   case object UnaryOperatorError {
     def apply(pos: (Int, Int), operator: String, t: String, exprType: String)(implicit errors: SemanticError): Unit = {
-      WaccSemanticErrorBuilder(pos, s"Unary operator \"$operator\" can only be applied to $t, type $exprType given")
+      if (exprType == "void")
+        WaccSemanticErrorBuilder(pos, s"\"$operator\" failed.\nThe given type is invalid, encountered a semantic error before?")
+      else
+        WaccSemanticErrorBuilder(pos, s"Unary operator \"$operator\" can only be applied to $t, type $exprType given")
     }
   }
 
   case object BinaryOperatorError {
     def apply(pos: (Int, Int), operator: String, t: Set[String], t1: String, t2: String)(implicit errors: SemanticError): Unit = {
-      val types = t.mkString(", ")
-      WaccSemanticErrorBuilder(pos, s"Binary operator \"$operator\" can only be applied to $types, types $t1 and $t2 given")
+      (t1, t2) match {
+        case ("void", "void") => WaccSemanticErrorBuilder(pos, s"\"$operator\" failed.\nBoth types are invalid, encountered a semantic error before?")
+        case ("void", _) => WaccSemanticErrorBuilder(pos, s"\"$operator\" failed.\nThe left type is invalid, encountered a semantic error before?")
+        case (_, "void") => WaccSemanticErrorBuilder(pos, s"\"$operator\" failed.\nThe right type is invalid, encountered a semantic error before?")
+        case _ =>
+          val types = t.mkString(", ")
+          WaccSemanticErrorBuilder(pos, s"Binary operator \"$operator\" can only be applied to $types, types $t1 and $t2 given")
+      }
     }
   }
 
   case object TypeMismatchError {
     def apply(pos: (Int, Int), t1: String, t2: String)(implicit errors: SemanticError): Unit = {
-      WaccSemanticErrorBuilder(pos, s"Type mismatch.\nGiven: $t2, Required: $t1")
+      (t1, t2) match {
+        case ("void", "void") => WaccSemanticErrorBuilder(pos, s"Both types are invalid, encountered a semantic error before?")
+        case ("void", _) => WaccSemanticErrorBuilder(pos, s"The required type is invalid, encountered a semantic error before?")
+        case (_, "void") => WaccSemanticErrorBuilder(pos, s"The given type is invalid, encountered a semantic error before?")
+        case _ => WaccSemanticErrorBuilder(pos, s"Type mismatch.\nGiven: $t2, Required: $t1")
+      }
     }
   }
 
@@ -55,7 +70,21 @@ object WaccSemanticErrorBuilder {
 
   case object CondBoolError {
     def apply(pos: (Int, Int), name: String)(implicit errors: SemanticError): Unit = {
-      WaccSemanticErrorBuilder(pos, s"Condition must be type of bool, type $name given")
+      if (name.equals("void"))
+        WaccSemanticErrorBuilder(pos, s"The given type for condition is invalid, encountered a semantic error before?")
+      else
+        WaccSemanticErrorBuilder(pos, s"Condition must be type of bool, type $name given")
+    }
+  }
+
+  case object StatError {
+    def apply(pos: (Int, Int), command: String, types: Set[String], t: String)(implicit errors: SemanticError): Unit = {
+      if (t.equals("void"))
+        WaccSemanticErrorBuilder(pos, s"\"$command\" failed.\nThe given type is invalid, encountered a semantic error before?")
+      else {
+        val typesStr = types.mkString(", ")
+        WaccSemanticErrorBuilder(pos, s" \"$command\" can only be applied to $typesStr, but a $t is provided")
+      }
     }
   }
 }

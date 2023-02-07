@@ -123,18 +123,20 @@ object ast {
         case If(_, _, _) =>
           val ifStat = stat.last.asInstanceOf[If]
           if (!ifStat.hasReturnOrExit) {
-            sys.exit(100)
+            WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
+            errors.isSemantic = false
           }
           true
         case BeginStat(_) =>
           val beginStat = stat.last.asInstanceOf[BeginStat]
           if (!beginStat.hasReturnOrExit) {
-            sys.exit(100)
+            WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
+            errors.isSemantic = false
           }
           true
         case _ =>
-          // will change this - but this is a syntax error
-          sys.exit(100)
+          WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
+          errors.isSemantic = false
           false
       }
     }
@@ -221,7 +223,7 @@ object ast {
       true
     }
 
-    private def isNestedPair(pair: ASTNode)(implicit errors: SemanticError): Boolean = {
+    private def isNestedPair(pair: ASTNode): Boolean = {
       pair match {
         case FstElem(FstElem(_)) => true
         case FstElem(SndElem(_)) => true
@@ -242,7 +244,7 @@ object ast {
         case IntST() => lvalue.check(st)
         case CharST() => lvalue.check(st)
         case _ =>
-          WaccSemanticErrorBuilder(pos, "Read takes in an int or char, but a " + t + " is provided")
+          StatError(pos, "Read", Set("int", "char"), t.toString)
           false
       }
     }
@@ -256,7 +258,7 @@ object ast {
         case ArrayST(_) => expr.check(st)
         case PairST(_, _) => expr.check(st)
         case _ =>
-          WaccSemanticErrorBuilder(pos, "Free takes in an array or pair, but a " + expr.getType(st) + " is provided")
+          StatError(pos, "Free", Set("array", "pair"), expr.getType(st).toString)
           false
       }
     }
@@ -288,7 +290,7 @@ object ast {
   case class Exit(expr: Expr)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       if (expr.getType(st) != IntST()) {
-        WaccSemanticErrorBuilder(pos, "Exit takes in an int, but a " + expr.getType(st) + " is provided")
+        StatError(pos, "Exit", Set("int"), expr.getType(st).toString)
         return false
       }
       expr.check(st)
@@ -489,7 +491,6 @@ object ast {
         case PairST(_, _) =>
           lvalue.check(st)
         case _ =>
-          WaccSemanticErrorBuilder(pos, lvalue + " is not a pair")
           false
       }
     }
@@ -498,7 +499,6 @@ object ast {
       lvalue.getType(st) match {
         case PairST(t1, _) => t1
         case _ =>
-          WaccSemanticErrorBuilder(pos, lvalue + " is not a pair")
           VoidST()
       }
     }
@@ -512,7 +512,6 @@ object ast {
         case PairST(_, _) =>
           lvalue.check(st)
         case _ =>
-          WaccSemanticErrorBuilder(pos, lvalue + " is not a pair")
           false
       }
     }
@@ -521,7 +520,6 @@ object ast {
       lvalue.getType(st) match {
         case PairST(_, t2) => t2
         case _ =>
-          WaccSemanticErrorBuilder(pos, lvalue + " is not a pair")
           VoidST()
       }
     }
@@ -609,7 +607,7 @@ object ast {
     override def getType(st: SymbolTable)(implicit errors: SemanticError): TypeST = {
       val query = st.lookupAll(ident.name + "()")
       if (query.isEmpty) {
-        WaccSemanticErrorBuilder(pos, ident + " is not defined")
+        WaccSemanticErrorBuilder(pos, "function" + ident.name + " is not defined")
         return VoidST()
       }
       query.get._1
