@@ -3,21 +3,37 @@ package wacc
 object STType {
   sealed trait TypeST
 
-  case class IntST() extends TypeST
+  case class IntST() extends TypeST {
+    override def toString: String = "int"
+  }
 
-  case class BoolST() extends TypeST
+  case class BoolST() extends TypeST {
+    override def toString: String = "bool"
+  }
 
-  case class CharST() extends TypeST
+  case class CharST() extends TypeST {
+    override def toString: String = "char"
+  }
 
-  case class StringST() extends TypeST
+  case class StringST() extends TypeST {
+    override def toString: String = "string"
+  }
 
-  case class ArrayST(t: TypeST) extends TypeST
+  case class ArrayST(t: TypeST) extends TypeST {
+    override def toString: String = "array(" + t.toString + ")"
+  }
 
-  case class PairST(t1: TypeST, t2: TypeST) extends TypeST
+  case class PairST(t1: TypeST, t2: TypeST) extends TypeST {
+    override def toString: String = "pair(" + t1.toString + ", " + t2.toString + ")"
+  }
 
-  case class AnyST() extends TypeST
+  case class AnyST() extends TypeST {
+    override def toString: String = "any"
+  }
 
-  case class VoidST() extends TypeST
+  case class VoidST() extends TypeST {
+    override def toString: String = "void"
+  }
 
   def typeCompare(t1: TypeST, t2: TypeST): TypeST =
     (t1, t2) match {
@@ -32,7 +48,6 @@ object STType {
     case _ => VoidST()
   }
 
-  // not nice, will see
   def typeCheck(t: TypeST): Boolean = t match {
     case VoidST() => false
     case ArrayST(t) => typeCheck(t)

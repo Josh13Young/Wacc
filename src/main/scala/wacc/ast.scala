@@ -4,6 +4,8 @@ import parsley.Parsley
 import parsley.implicits.zipped.{Zipped2, Zipped3, Zipped4}
 import parsley.position.pos
 import wacc.STType._
+import wacc.error.WaccSemanticErrorBuilder
+import wacc.error.WaccSemanticErrorBuilder.SemanticError
 
 import scala.collection.mutable.ListBuffer
 
@@ -54,13 +56,14 @@ object ast {
   // <PROGRAM>
   // Since Stat; Stat is valid, we represent it as a list of Stat
   case class Program(functions: List[Func], stat: List[Stat])(val pos: (Int, Int)) extends ASTNode {
-    def check(st: SymbolTable): Boolean = {
+    def check(st: SymbolTable)(implicit err: SemanticError): Boolean = {
       var result = true
       println("Checking program: ")
       val funSTs = new ListBuffer[SymbolTable]()
       for (f <- functions) {
         val funST = f.checkParam(st)
         if (funST == null) {
+          WaccSemanticErrorBuilder(f.pos, "Function " + f.ident.name + " already defined")
           return false
         }
         funSTs += funST
@@ -69,11 +72,13 @@ object ast {
         val funST = funSTs(i)
         val f = functions(i)
         if (!f.checkStat(funST)) {
+          WaccSemanticErrorBuilder(f.pos, "Function " + f.ident.name + " has invalid statements")
           result = false
         }
       }
       for (s <- stat) {
         if (!s.check(st)) {
+          WaccSemanticErrorBuilder(s.pos, "Invalid statement")
           result = false
         }
       }
@@ -87,7 +92,7 @@ object ast {
   // <FUNC>
 
   case class Func(t: Type, ident: Ident, vars: List[Param], stat: List[Stat])(val pos: (Int, Int)) extends ASTNode {
-    def checkParam(st: SymbolTable): SymbolTable = {
+    def checkParam(st: SymbolTable)(implicit err: SemanticError): SymbolTable = {
       println("Checking function: " + ident.name)
       val query = st.lookup(ident.name + "()")
       if (query.isDefined) {
@@ -107,7 +112,7 @@ object ast {
       funST
     }
 
-    def checkStat(funST: SymbolTable): Boolean = {
+    def checkStat(funST: SymbolTable)(implicit errors: SemanticError): Boolean = {
       val funStatST = new SymbolTable(Some(funST))
       val st = funStatST.parentTable.get
       funStatST.isFunctionBody = true
@@ -156,7 +161,7 @@ object ast {
 
   // <PARAM>
   case class Param(t: Type, ident: Ident)(val pos: (Int, Int)) extends ASTNode {
-    def check(st: SymbolTable): Boolean = {
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking param: " + ident.name)
       val query = st.lookup(ident.name)
       if (query.isDefined) {
@@ -173,11 +178,11 @@ object ast {
 
   // <STAT>
   sealed trait Stat extends ASTNode {
-    def check(st: SymbolTable): Boolean
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean
   }
 
   case class Skip()(val pos: (Int, Int)) extends Stat {
-    override def check(st: SymbolTable): Boolean = {
+    override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking skip")
       true
     }
@@ -186,7 +191,7 @@ object ast {
   object Skip extends ParserBridgePos0[Skip]
 
   case class AssignNew(t: Type, ident: Ident, rvalue: Rvalue)(val pos: (Int, Int)) extends Stat {
-    override def check(st: SymbolTable): Boolean = {
+    override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking assign new: " + ident.name)
       val query = st.lookup(ident.name)
       if (query.isDefined) {
@@ -216,7 +221,7 @@ object ast {
   object AssignNew extends ParserBridgePos3[Type, Ident, Rvalue, AssignNew]
 
   case class Assign(lvalue: Lvalue, rvalue: Rvalue)(val pos: (Int, Int)) extends Stat {
-    override def check(st: SymbolTable): Boolean = {
+    override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking assign: " + lvalue)
       if (isNestedPair(lvalue) && isNestedPair(rvalue)) {
         return false
@@ -254,7 +259,7 @@ object ast {
   object Assign extends ParserBridgePos2[Lvalue, Rvalue, Assign]
 
   case class Read(lvalue: Lvalue)(val pos: (Int, Int)) extends Stat {
-    override def check(st: SymbolTable): Boolean = {
+    override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking read: " + lvalue)
       lvalue.getType(st) match {
         case IntST() => lvalue.check(st)
@@ -269,7 +274,7 @@ object ast {
   object Read extends ParserBridgePos1[Lvalue, Read]
 
   case class Free(expr: Expr)(val pos: (Int, Int)) extends Stat {
-    override def check(st: SymbolTable): Boolean = {
+    override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking free: " + expr)
       expr.getType(st) match {
         case ArrayST(_) => expr.check(st)
@@ -284,7 +289,7 @@ object ast {
   object Free extends ParserBridgePos1[Expr, Free]
 
   case class Return(expr: Expr)(val pos: (Int, Int)) extends Stat {
-    override def check(st: SymbolTable): Boolean = {
+    override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking return: " + expr)
       if (!st.isFunctionBody) {
         return false
@@ -305,7 +310,7 @@ object ast {
   object Return extends ParserBridgePos1[Expr, Return]
 
   case class Exit(expr: Expr)(val pos: (Int, Int)) extends Stat {
-    override def check(st: SymbolTable): Boolean = {
+    override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking exit: " + expr)
       expr.getType(st) == IntST() && expr.check(st)
     }
@@ -314,7 +319,7 @@ object ast {
   object Exit extends ParserBridgePos1[Expr, Exit]
 
   case class Print(expr: Expr)(val pos: (Int, Int)) extends Stat {
-    override def check(st: SymbolTable): Boolean = {
+    override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking print: " + expr)
       expr.check(st)
     }
@@ -323,7 +328,7 @@ object ast {
   object Print extends ParserBridgePos1[Expr, Print]
 
   case class Println(expr: Expr)(val pos: (Int, Int)) extends Stat {
-    override def check(st: SymbolTable): Boolean = {
+    override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking println: " + expr)
       expr.check(st)
     }
@@ -334,7 +339,7 @@ object ast {
   // Stat can call another Stat, so we represent it as a list of Stat
   case class If(cond: Expr, trueStat: List[Stat], falseStat: List[Stat])(val pos: (Int, Int)) extends Stat {
     var hasReturnOrExit = false
-    override def check(st: SymbolTable): Boolean = {
+    override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking if: " + cond + "...")
       if (cond.getType(st) != BoolST()) {
         println("Error: " + cond + " is not a boolean\n")
@@ -365,6 +370,7 @@ object ast {
       falseST.isFunctionBody = st.isFunctionBody
       falseST.functionReturnType = st.functionReturnType
       if (!falseStat.forall(_.check(falseST))) {
+        WaccSemanticErrorBuilder(pos, falseStat + " check failed")
         println("Error: " + falseStat + " check failed\n")
         return false
       }
@@ -387,7 +393,7 @@ object ast {
   object If extends ParserBridgePos3[Expr, List[Stat], List[Stat], If]
 
   case class While(cond: Expr, stat: List[Stat])(val pos: (Int, Int)) extends Stat {
-    override def check(st: SymbolTable): Boolean = {
+    override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking while: " + cond + "...")
       if (cond.getType(st) != BoolST()) {
         println("Error: " + cond + " is not a boolean\n")
@@ -412,12 +418,13 @@ object ast {
 
   case class BeginStat(stat: List[Stat])(val pos: (Int, Int)) extends Stat {
     var hasReturnOrExit = false
-    override def check(st: SymbolTable): Boolean = {
+    override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking begin: " + stat + "...")
       val beginST = new SymbolTable(Option(st))
       beginST.isFunctionBody = st.isFunctionBody
       beginST.functionReturnType = st.functionReturnType
       if (!stat.forall(_.check(beginST))) {
+        WaccSemanticErrorBuilder(pos, stat + " check failed")
         println("Error: " + stat + " check failed\n")
         return false
       }
@@ -440,14 +447,14 @@ object ast {
 
   // <LVALUE>
   sealed trait Lvalue extends ASTNode {
-    def check(st: SymbolTable): Boolean
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean
 
     def getType(st: SymbolTable): TypeST
   }
 
   // <IDENT>
   case class Ident(name: String)(val pos: (Int, Int)) extends Lvalue with Expr {
-    def check(st: SymbolTable): Boolean = {
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking ident: " + name)
       val query = st.lookupAll(name)
       if (query.isEmpty) {
@@ -475,7 +482,7 @@ object ast {
 
   // <ARRAY-ELEM>
   case class ArrayElem(ident: Ident, exprList: List[Expr])(val pos: (Int, Int)) extends Lvalue with Expr {
-    override def check(st: SymbolTable): Boolean = {
+    override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       var result = true
       println("Checking array elem: " + ident)
       ident.check(st)
@@ -511,7 +518,7 @@ object ast {
   sealed trait PairElem extends Lvalue with Rvalue
 
   case class FstElem(lvalue: Lvalue)(val pos: (Int, Int)) extends PairElem {
-    override def check(st: SymbolTable): Boolean = {
+    override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking fst of : " + lvalue)
       lvalue.getType(st) match {
         case PairST(_, _) =>
@@ -536,7 +543,7 @@ object ast {
   object FstElem extends ParserBridgePos1[Lvalue, FstElem]
 
   case class SndElem(lvalue: Lvalue)(val pos: (Int, Int)) extends PairElem {
-    override def check(st: SymbolTable): Boolean = {
+    override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking snd of : " + lvalue)
       lvalue.getType(st) match {
         case PairST(_, _) =>
@@ -562,14 +569,14 @@ object ast {
 
   // <RVALUE>
   sealed trait Rvalue extends ASTNode {
-    def check(st: SymbolTable): Boolean
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean
 
     def getType(st: SymbolTable): TypeST
   }
 
   // <ARRAY-LITER>
   case class ArrayLiter(exprList: List[Expr])(val pos: (Int, Int)) extends Rvalue {
-    override def check(st: SymbolTable): Boolean = {
+    override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking array liter")
       var result = true
       if (exprList.isEmpty) {
@@ -601,7 +608,7 @@ object ast {
   object ArrayLiter extends ParserBridgePos1[List[Expr], ArrayLiter]
 
   case class NewPair(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends Rvalue {
-    override def check(st: SymbolTable): Boolean = {
+    override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking new pair")
       expr1.check(st) && expr2.check(st)
     }
@@ -614,7 +621,7 @@ object ast {
   object NewPair extends ParserBridgePos2[Expr, Expr, NewPair]
 
   case class Call(ident: Ident, argList: List[Expr])(val pos: (Int, Int)) extends Rvalue {
-    override def check(st: SymbolTable): Boolean = {
+    override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Call")
       val query = st.locateST(ident.name + "()")
       if (query.isEmpty) {
@@ -732,13 +739,13 @@ object ast {
 
   // <EXPR>
   sealed trait Expr extends Rvalue {
-    def check(st: SymbolTable): Boolean
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean
 
     def getType(st: SymbolTable): TypeST
   }
 
   case class IntLiter(value: Int)(val pos: (Int, Int)) extends Expr {
-    def check(st: SymbolTable): Boolean = true
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = true
 
     def getType(st: SymbolTable): TypeST = IntST()
   }
@@ -746,7 +753,7 @@ object ast {
   object IntLiter extends ParserBridgePos1[Int, IntLiter]
 
   case class BoolLiter(value: Boolean)(val pos: (Int, Int)) extends Expr {
-    def check(st: SymbolTable): Boolean = true
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = true
 
     def getType(st: SymbolTable): TypeST = BoolST()
   }
@@ -754,7 +761,7 @@ object ast {
   object BoolLiter extends ParserBridgePos1[Boolean, BoolLiter]
 
   case class CharLiter(value: Char)(val pos: (Int, Int)) extends Expr {
-    def check(st: SymbolTable): Boolean = true
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = true
 
     def getType(st: SymbolTable): TypeST = CharST()
   }
@@ -762,7 +769,7 @@ object ast {
   object CharLiter extends ParserBridgePos1[Char, CharLiter]
 
   case class StrLiter(value: String)(val pos: (Int, Int)) extends Expr {
-    def check(st: SymbolTable): Boolean = true
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = true
 
     def getType(st: SymbolTable): TypeST = StringST()
   }
@@ -770,7 +777,7 @@ object ast {
   object StrLiter extends ParserBridgePos1[String, StrLiter]
 
   case class PairLiter()(val pos: (Int, Int)) extends Expr {
-    def check(st: SymbolTable): Boolean = true
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = true
 
     def getType(st: SymbolTable): TypeST = PairST(AnyST(), AnyST())
   }
@@ -781,7 +788,7 @@ object ast {
   sealed trait UnaryOp extends Expr
 
   case class Not(expr: Expr)(val pos: (Int, Int)) extends UnaryOp {
-    def check(st: SymbolTable): Boolean = {
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Not")
       expr.getType(st) == BoolST() && expr.check(st)
     }
@@ -792,7 +799,7 @@ object ast {
   object Not extends ParserBridgePos1[Expr, Not]
 
   case class Neg(expr: Expr)(val pos: (Int, Int)) extends UnaryOp {
-    def check(st: SymbolTable): Boolean = {
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Neg")
       expr.getType(st) == IntST() && expr.check(st)
     }
@@ -804,7 +811,7 @@ object ast {
 
 
   case class Len(expr: Expr)(val pos: (Int, Int)) extends UnaryOp {
-    def check(st: SymbolTable): Boolean = {
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Len")
       expr.getType(st) match {
         case ArrayST(_) => expr.check(st)
@@ -819,7 +826,7 @@ object ast {
 
 
   case class Ord(expr: Expr)(val pos: (Int, Int)) extends UnaryOp {
-    def check(st: SymbolTable): Boolean = {
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Ord")
       expr.getType(st) == CharST() && expr.check(st)
     }
@@ -831,7 +838,7 @@ object ast {
 
 
   case class Chr(expr: Expr)(val pos: (Int, Int)) extends UnaryOp {
-    def check(st: SymbolTable): Boolean = {
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Chr")
       expr.getType(st) == IntST() && expr.check(st)
     }
@@ -846,7 +853,7 @@ object ast {
   sealed trait BinaryOp extends Expr
 
   case class Mul(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
-    def check(st: SymbolTable): Boolean = {
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Mul")
       expr1.getType(st) == IntST() && expr2.getType(st) == IntST() && expr1.check(st) && expr2.check(st)
     }
@@ -857,7 +864,7 @@ object ast {
   object Mul extends ParserBridgePos2[Expr, Expr, Mul]
 
   case class Div(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
-    def check(st: SymbolTable): Boolean = {
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Div")
       expr1.getType(st) == IntST() && expr2.getType(st) == IntST() && expr1.check(st) && expr2.check(st)
     }
@@ -868,7 +875,7 @@ object ast {
   object Div extends ParserBridgePos2[Expr, Expr, Div]
 
   case class Mod(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
-    def check(st: SymbolTable): Boolean = {
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Mod")
       expr1.getType(st) == IntST() && expr2.getType(st) == IntST() && expr1.check(st) && expr2.check(st)
     }
@@ -879,7 +886,7 @@ object ast {
   object Mod extends ParserBridgePos2[Expr, Expr, Mod]
 
   case class Add(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
-    def check(st: SymbolTable): Boolean = {
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Add")
       expr1.getType(st) == IntST() && expr2.getType(st) == IntST() && expr1.check(st) && expr2.check(st)
     }
@@ -890,7 +897,7 @@ object ast {
   object Add extends ParserBridgePos2[Expr, Expr, Add]
 
   case class Sub(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
-    def check(st: SymbolTable): Boolean = {
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Sub")
       expr1.getType(st) == IntST() && expr2.getType(st) == IntST() && expr1.check(st) && expr2.check(st)
     }
@@ -901,7 +908,7 @@ object ast {
   object Sub extends ParserBridgePos2[Expr, Expr, Sub]
 
   case class GT(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
-    def check(st: SymbolTable): Boolean = {
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking GT")
       (expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
         expr1.getType(st) == CharST() && expr2.getType(st) == CharST()) && expr1.check(st) && expr2.check(st)
@@ -913,7 +920,7 @@ object ast {
   object GT extends ParserBridgePos2[Expr, Expr, GT]
 
   case class GTE(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
-    def check(st: SymbolTable): Boolean = {
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking GTE")
       (expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
         expr1.getType(st) == CharST() && expr2.getType(st) == CharST()) && expr1.check(st) && expr2.check(st)
@@ -925,7 +932,7 @@ object ast {
   object GTE extends ParserBridgePos2[Expr, Expr, GTE]
 
   case class LT(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
-    def check(st: SymbolTable): Boolean = {
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking LT")
       (expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
         expr1.getType(st) == CharST() && expr2.getType(st) == CharST()) && expr1.check(st) && expr2.check(st)
@@ -937,7 +944,7 @@ object ast {
   object LT extends ParserBridgePos2[Expr, Expr, LT]
 
   case class LTE(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
-    def check(st: SymbolTable): Boolean = {
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking LTE")
       (expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
         expr1.getType(st) == CharST() && expr2.getType(st) == CharST()) && expr1.check(st) && expr2.check(st)
@@ -949,7 +956,7 @@ object ast {
   object LTE extends ParserBridgePos2[Expr, Expr, LTE]
 
   case class EQ(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
-    def check(st: SymbolTable): Boolean = {
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking EQ")
       typeCompare(expr1.getType(st), expr2.getType(st)) != VoidST() && expr1.check(st) && expr2.check(st)
     }
@@ -960,7 +967,7 @@ object ast {
   object EQ extends ParserBridgePos2[Expr, Expr, EQ]
 
   case class NEQ(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
-    def check(st: SymbolTable): Boolean = {
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking NEQ")
       typeCompare(expr1.getType(st), expr2.getType(st)) != VoidST() && expr1.check(st) && expr2.check(st)
     }
@@ -971,7 +978,7 @@ object ast {
   object NEQ extends ParserBridgePos2[Expr, Expr, NEQ]
 
   case class And(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
-    def check(st: SymbolTable): Boolean = {
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking And")
       expr1.getType(st) == BoolST() && expr2.getType(st) == BoolST() && expr1.check(st) && expr2.check(st)
     }
@@ -982,7 +989,7 @@ object ast {
   object And extends ParserBridgePos2[Expr, Expr, And]
 
   case class Or(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
-    def check(st: SymbolTable): Boolean = {
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Or")
       expr1.getType(st) == BoolST() && expr2.getType(st) == BoolST() && expr1.check(st) && expr2.check(st)
     }
