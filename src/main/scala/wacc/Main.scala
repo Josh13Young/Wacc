@@ -11,7 +11,6 @@ object Main {
     implicit val eb: WaccErrorBuilder = new WaccErrorBuilder
     parser.parser.parse(input) match {
       case Success(x) =>
-        println(s"$input = $x")
         val seb = new wacc.error.WaccSemanticErrorBuilder.SemanticError
         seb.program = inputList
         if (x.check(new SymbolTable(None))(seb)) {
