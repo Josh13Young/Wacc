@@ -123,18 +123,21 @@ object ast {
         case If(_, _, _) =>
           val ifStat = stat.last.asInstanceOf[If]
           if (!ifStat.hasReturnOrExit) {
-            sys.exit(100)
+            WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
+            errors.isSemantic = false
           }
           true
         case BeginStat(_) =>
           val beginStat = stat.last.asInstanceOf[BeginStat]
           if (!beginStat.hasReturnOrExit) {
-            sys.exit(100)
+            WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
+            errors.isSemantic = false
           }
           true
         case _ =>
-          // will change this - but this is a syntax error
-          sys.exit(100)
+          WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
+          errors.isSemantic = false
+          false
       }
     }
   }
@@ -220,7 +223,7 @@ object ast {
       true
     }
 
-    private def isNestedPair(pair: ASTNode)(implicit errors: SemanticError): Boolean = {
+    private def isNestedPair(pair: ASTNode): Boolean = {
       pair match {
         case FstElem(FstElem(_)) => true
         case FstElem(SndElem(_)) => true

@@ -14,6 +14,7 @@ object WaccSemanticErrorBuilder {
   }
 
   class SemanticError {
+    var isSemantic: Boolean = true
     var program: List[String] = List()
     var errors: mutable.ListBuffer[WaccError] = mutable.ListBuffer()
 
