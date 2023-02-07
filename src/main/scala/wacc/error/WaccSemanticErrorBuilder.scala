@@ -33,4 +33,16 @@ object WaccSemanticErrorBuilder {
       WaccSemanticErrorBuilder(pos, s"Binary operator $operator can only be applied to $types")
     }
   }
+
+  case object TypeMismatchError {
+    def apply(pos:(Int, Int), t1: String, t2: String)(implicit errors:SemanticError): Unit = {
+      WaccSemanticErrorBuilder(pos, s"Type mismatch: $t1 and $t2")
+    }
+  }
+
+  case object IdentAlreadyDefinedError {
+    def apply(pos:(Int, Int), name: String)(implicit errors:SemanticError): Unit = {
+      WaccSemanticErrorBuilder(pos, s"Identifier $name is already defined")
+    }
+  }
 }

@@ -5,7 +5,7 @@ import parsley.implicits.zipped.{Zipped2, Zipped3, Zipped4}
 import parsley.position.pos
 import wacc.STType._
 import wacc.error.WaccSemanticErrorBuilder
-import wacc.error.WaccSemanticErrorBuilder.{BinaryOperatorError, SemanticError, UnaryOperatorError}
+import wacc.error.WaccSemanticErrorBuilder._
 
 import scala.collection.mutable.ListBuffer
 
@@ -63,7 +63,6 @@ object ast {
       for (f <- functions) {
         val funST = f.checkParam(st)
         if (funST == null) {
-          WaccSemanticErrorBuilder(f.pos, "Function " + f.ident.name + " already defined")
           return false
         }
         funSTs += funST
@@ -72,7 +71,6 @@ object ast {
         val funST = funSTs(i)
         val f = functions(i)
         if (!f.checkStat(funST)) {
-          WaccSemanticErrorBuilder(f.pos, "Function " + f.ident.name + " has invalid statements")
           result = false
         }
       }
@@ -194,6 +192,7 @@ object ast {
       println("Checking assign new: " + ident.name)
       val query = st.lookup(ident.name)
       if (query.isDefined) {
+        IdentAlreadyDefinedError(pos, ident.name)
         println("Error: " + ident.name + " already defined\n")
         return false
       }
@@ -202,6 +201,7 @@ object ast {
       println("LHS type:" + lhsType + " RHS type: " + rhsType)
       val resType = typeCompare(lhsType, rhsType)
       if (!typeCheck(resType)) {
+        TypeMismatchError(pos, lhsType.toString, rhsType.toString)
         println("Error: " + ident.name + " type mismatch\n")
         false
       } else {
@@ -234,6 +234,7 @@ object ast {
       println("LHS type:" + identType + " RHS type: " + rhsType)
       val resType = typeCompare(identType, rhsType)
       if (!typeCheck(resType)) {
+        TypeMismatchError(pos, identType.toString, rhsType.toString)
         println("Error: " + lvalue + " type mismatch\n")
         return false
       }
@@ -260,10 +261,12 @@ object ast {
   case class Read(lvalue: Lvalue)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking read: " + lvalue)
-      lvalue.getType(st) match {
+      val t = lvalue.getType(st)
+      t match {
         case IntST() => lvalue.check(st)
         case CharST() => lvalue.check(st)
         case _ =>
+          WaccSemanticErrorBuilder(pos, "Read requires an int or char, given " + t)
           println("Error: " + lvalue + " is not an int or char\n")
           false
       }
@@ -279,6 +282,7 @@ object ast {
         case ArrayST(_) => expr.check(st)
         case PairST(_, _) => expr.check(st)
         case _ =>
+          WaccSemanticErrorBuilder(pos, "Free requires an array or pair, given " + expr.getType(st))
           println("Error: " + expr + " is not an array or pair\n")
           false
       }
@@ -295,10 +299,12 @@ object ast {
       }
       val requiredType = st.functionReturnType
       if (requiredType.isEmpty) {
+        WaccSemanticErrorBuilder(pos, "Return " + expr + " not in function body (should not be here)")
         println("Error: " + expr + " not in function body (should not be here)\n")
         return false
       }
       if (typeCompare(requiredType.get, expr.getType(st)) == VoidST()) {
+        TypeMismatchError(pos, requiredType.get.toString, expr.getType(st).toString)
         println("Error: Return " + expr + " type mismatch\n")
         return false
       }
@@ -311,7 +317,11 @@ object ast {
   case class Exit(expr: Expr)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking exit: " + expr)
-      expr.getType(st) == IntST() && expr.check(st)
+      if (expr.getType(st) != IntST()) {
+        WaccSemanticErrorBuilder(pos, "Exit requires an array or pair, given " + expr.getType(st))
+        return false
+      }
+      expr.check(st)
     }
   }
 

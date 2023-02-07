@@ -1,7 +1,9 @@
 package wacc
 
 object STType {
-  sealed trait TypeST
+  sealed trait TypeST {
+     def toString: String
+  }
 
   case class IntST() extends TypeST {
     override def toString: String = "int"
