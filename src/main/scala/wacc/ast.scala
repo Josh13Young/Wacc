@@ -163,7 +163,7 @@ object ast {
       println("Checking param: " + ident.name)
       val query = st.lookup(ident.name)
       if (query.isDefined) {
-        WaccSemanticErrorBuilder(pos, "Error: " + ident.name + " already defined")
+        WaccSemanticErrorBuilder(pos, "Variable " + ident.name + " already defined")
         println("Error: " + ident.name + " already defined\n")
         return false
       }
@@ -225,6 +225,7 @@ object ast {
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking assign: " + lvalue)
       if (isNestedPair(lvalue) && isNestedPair(rvalue)) {
+        WaccSemanticErrorBuilder(pos, "Nested pair, unknown type, erasure")
         return false
       }
       if (!lvalue.check(st)) {
@@ -254,7 +255,6 @@ object ast {
         case SndElem(FstElem(_)) => true
         case SndElem(SndElem(_)) => true
         case _ =>
-          WaccSemanticErrorBuilder(pos, "Nested pairs are not allowed")
           false
       }
     }
@@ -270,7 +270,7 @@ object ast {
         case IntST() => lvalue.check(st)
         case CharST() => lvalue.check(st)
         case _ =>
-          WaccSemanticErrorBuilder(pos, "Read requires an int or char, given " + t)
+          WaccSemanticErrorBuilder(pos, "Read takes in an int or char, but a " + t + " is provided")
           println("Error: " + lvalue + " is not an int or char\n")
           false
       }
@@ -286,7 +286,7 @@ object ast {
         case ArrayST(_) => expr.check(st)
         case PairST(_, _) => expr.check(st)
         case _ =>
-          WaccSemanticErrorBuilder(pos, "Free requires an array or pair, given " + expr.getType(st))
+          WaccSemanticErrorBuilder(pos, "Free takes in an array or pair, but a " + expr.getType(st) + " is provided")
           println("Error: " + expr + " is not an array or pair\n")
           false
       }
@@ -299,7 +299,7 @@ object ast {
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking return: " + expr)
       if (!st.isFunctionBody) {
-        WaccSemanticErrorBuilder(pos, "Return " + expr + " not in function body (should not be here)")
+        WaccSemanticErrorBuilder(pos, "Return expression not in a function body")
         return false
       }
       val requiredType = st.functionReturnType
@@ -323,7 +323,7 @@ object ast {
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking exit: " + expr)
       if (expr.getType(st) != IntST()) {
-        WaccSemanticErrorBuilder(pos, "Exit requires an int, given " + expr.getType(st))
+        WaccSemanticErrorBuilder(pos, "Exit takes in an int, but a " + expr.getType(st) + " is provided")
         return false
       }
       expr.check(st)
@@ -475,7 +475,7 @@ object ast {
       println("Checking ident: " + name)
       val query = st.lookupAll(name)
       if (query.isEmpty) {
-        WaccSemanticErrorBuilder(pos, "Ident " + name + " is not declared")
+        WaccSemanticErrorBuilder(pos, "Variable " + name + " is not declared")
         println("Error: " + name + " is not declared")
         false
       } else {
@@ -520,11 +520,15 @@ object ast {
       println("Getting type of array elem: " + ident)
       var identType = ident.getType(st)
       println("Ident type: " + identType)
+      val bracket = "[]".repeat(exprList.length - 1)
+      println("Expr list: " + exprList + " length: " + exprList.length)
       for (_ <- 1 to exprList.length) {
         identType match {
-          case ArrayST(t) => identType = t
+          case ArrayST(t) =>
+            identType = t
+            bracket.dropRight(2)
           case _ =>
-            WaccSemanticErrorBuilder(pos, ident + " is not an array")
+            WaccSemanticErrorBuilder(pos, "variable \"" + ident.name + bracket + "\" is not an array")
             println("Error: " + ident + " is not an array")
             identType = VoidST()
         }
@@ -651,7 +655,7 @@ object ast {
       println("Checking Call")
       val query = st.locateST(ident.name + "()")
       if (query.isEmpty) {
-        WaccSemanticErrorBuilder(pos, ident + " is not defined")
+        WaccSemanticErrorBuilder(pos, ident.name + " is not a defined function")
         println("Error: " + ident + " is not defined")
         return false
       }
@@ -664,7 +668,7 @@ object ast {
       println("Found child function of args num: " + dict.length)
       println("Given args:" + argList.length)
       if (dict.length != argList.length) {
-        WaccSemanticErrorBuilder(pos, ident + " has wrong number of arguments")
+        WaccSemanticErrorBuilder(pos, ident.name + " has wrong number of arguments.\nGiven: " + argList.length + " Expected: " + dict.length)
         println("Error: " + ident + " has wrong number of arguments")
         return false
       }
@@ -677,7 +681,7 @@ object ast {
         val paramType = dict(i)._1
         println("paramType: " + paramType)
         if (typeCompare(argType, paramType) == VoidST()) {
-          WaccSemanticErrorBuilder(pos, ident + " has wrong type of arguments")
+          WaccSemanticErrorBuilder(argList(i).pos, ident.name + " has wrong type of arguments.\nGiven: " + argType.toString + " Expected: " + paramType.toString)
           println("Error: " + ident + " has wrong type of arguments")
           return false
         }
@@ -820,8 +824,9 @@ object ast {
   case class Not(expr: Expr)(val pos: (Int, Int)) extends UnaryOp {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Not")
-      if (expr.getType(st) != BoolST()) {
-        UnaryOperatorError(pos, "!", "bool")
+      val exprType = expr.getType(st)
+      if (exprType != BoolST()) {
+        UnaryOperatorError(pos, "!", "bool", exprType.toString)
         return false
       }
       expr.check(st)
@@ -835,8 +840,9 @@ object ast {
   case class Neg(expr: Expr)(val pos: (Int, Int)) extends UnaryOp {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Neg")
-      if (expr.getType(st) != IntST()) {
-        UnaryOperatorError(pos, "-", "int")
+      val exprType = expr.getType(st)
+      if (exprType != IntST()) {
+        UnaryOperatorError(pos, "-", "int", exprType.toString)
         return false
       }
       expr.check(st)
@@ -851,10 +857,11 @@ object ast {
   case class Len(expr: Expr)(val pos: (Int, Int)) extends UnaryOp {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Len")
-      expr.getType(st) match {
+      val exprType = expr.getType(st)
+      exprType match {
         case ArrayST(_) => expr.check(st)
         case _ =>
-          UnaryOperatorError(pos, "len", "array")
+          UnaryOperatorError(pos, "len", "array", exprType.toString)
           false
       }
     }
@@ -868,8 +875,9 @@ object ast {
   case class Ord(expr: Expr)(val pos: (Int, Int)) extends UnaryOp {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Ord")
+      val exprType = expr.getType(st)
       if (expr.getType(st) != CharST()) {
-        UnaryOperatorError(pos, "ord", "char")
+        UnaryOperatorError(pos, "ord", "char", exprType.toString)
         return false
       }
       expr.check(st)
@@ -884,8 +892,9 @@ object ast {
   case class Chr(expr: Expr)(val pos: (Int, Int)) extends UnaryOp {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Chr")
-      if (expr.getType(st) != IntST()) {
-        UnaryOperatorError(pos, "chr", "int")
+      val exprType = expr.getType(st)
+      if (exprType != IntST()) {
+        UnaryOperatorError(pos, "chr", "int", exprType.toString)
         return false
       }
       expr.check(st)
@@ -903,8 +912,10 @@ object ast {
   case class Mul(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Mul")
-      if (expr1.getType(st) != IntST() || expr2.getType(st) != IntST()) {
-        BinaryOperatorError(pos, "*", Set("int"))
+      val t1 = expr1.getType(st)
+      val t2 = expr2.getType(st)
+      if (t1 != IntST() || t2 != IntST()) {
+        BinaryOperatorError(pos, "*", Set("int"), t1.toString, t2.toString)
         return false
       }
       expr1.check(st) && expr2.check(st)
@@ -918,8 +929,10 @@ object ast {
   case class Div(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Div")
-      if (expr1.getType(st) != IntST() || expr2.getType(st) != IntST()) {
-        BinaryOperatorError(pos, "/", Set("int"))
+      val t1 = expr1.getType(st)
+      val t2 = expr2.getType(st)
+      if (t1 != IntST() || t2 != IntST()) {
+        BinaryOperatorError(pos, "/", Set("int"), t1.toString, t2.toString)
         return false
       }
       expr1.check(st) && expr2.check(st)
@@ -933,8 +946,10 @@ object ast {
   case class Mod(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Mod")
-      if (expr1.getType(st) != IntST() || expr2.getType(st) != IntST()) {
-        BinaryOperatorError(pos, "%", Set("int"))
+      val t1 = expr1.getType(st)
+      val t2 = expr2.getType(st)
+      if (t1 != IntST() || t2 != IntST()) {
+        BinaryOperatorError(pos, "%", Set("int"), t1.toString, t2.toString)
         return false
       }
       expr1.check(st) && expr2.check(st)
@@ -948,8 +963,10 @@ object ast {
   case class Add(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Add")
-      if (expr1.getType(st) != IntST() || expr2.getType(st) != IntST()) {
-        BinaryOperatorError(pos, "+", Set("int"))
+      val t1 = expr1.getType(st)
+      val t2 = expr2.getType(st)
+      if (t1 != IntST() || t2 != IntST()) {
+        BinaryOperatorError(pos, "+", Set("int"), t1.toString, t2.toString)
         return false
       }
       expr1.check(st) && expr2.check(st)
@@ -963,8 +980,10 @@ object ast {
   case class Sub(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Sub")
-      if (expr1.getType(st) != IntST() || expr2.getType(st) != IntST()) {
-        BinaryOperatorError(pos, "-", Set("int"))
+      val t1 = expr1.getType(st)
+      val t2 = expr2.getType(st)
+      if (t1 != IntST() || t2 != IntST()) {
+        BinaryOperatorError(pos, "-", Set("int"), t1.toString, t2.toString)
         return false
       }
       expr1.check(st) && expr2.check(st)
@@ -978,9 +997,11 @@ object ast {
   case class GT(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking GT")
-      if (!(expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
-        expr1.getType(st) == CharST() && expr2.getType(st) == CharST())) {
-        BinaryOperatorError(pos, ">", Set("int", "char"))
+      val t1 = expr1.getType(st)
+      val t2 = expr2.getType(st)
+      if (!(t1 == IntST() && t2 == IntST() ||
+        t1 == CharST() && t2 == CharST())) {
+        BinaryOperatorError(pos, ">", Set("int", "char"), t1.toString, t2.toString)
         return false
       }
       expr1.check(st) && expr2.check(st)
@@ -994,9 +1015,11 @@ object ast {
   case class GTE(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking GTE")
-      if (!(expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
-        expr1.getType(st) == CharST() && expr2.getType(st) == CharST())) {
-        BinaryOperatorError(pos, ">=", Set("int", "char"))
+      val t1 = expr1.getType(st)
+      val t2 = expr2.getType(st)
+      if (!(t1 == IntST() && t2 == IntST() ||
+        t1 == CharST() && t2 == CharST())) {
+        BinaryOperatorError(pos, ">=", Set("int", "char"), t1.toString, t2.toString)
         return false
       }
       expr1.check(st) && expr2.check(st)
@@ -1010,9 +1033,11 @@ object ast {
   case class LT(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking LT")
-      if (!(expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
-        expr1.getType(st) == CharST() && expr2.getType(st) == CharST())) {
-        BinaryOperatorError(pos, "<", Set("int", "char"))
+      val t1 = expr1.getType(st)
+      val t2 = expr2.getType(st)
+      if (!(t1 == IntST() && t2 == IntST() ||
+        t1 == CharST() && t2 == CharST())) {
+        BinaryOperatorError(pos, "<", Set("int", "char"), t1.toString, t2.toString)
         return false
       }
       expr1.check(st) && expr2.check(st)
@@ -1026,9 +1051,11 @@ object ast {
   case class LTE(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking LTE")
-      if (!(expr1.getType(st) == IntST() && expr2.getType(st) == IntST() ||
-        expr1.getType(st) == CharST() && expr2.getType(st) == CharST())) {
-        BinaryOperatorError(pos, "<=", Set("int", "char"))
+      val t1 = expr1.getType(st)
+      val t2 = expr2.getType(st)
+      if (!(t1 == IntST() && t2 == IntST() ||
+        t1 == CharST() && t2 == CharST())) {
+        BinaryOperatorError(pos, "<=", Set("int", "char"), t1.toString, t2.toString)
         return false
       }
       expr1.check(st) && expr2.check(st)
@@ -1072,8 +1099,10 @@ object ast {
   case class And(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking And")
-      if (!(expr1.getType(st) == BoolST() && expr2.getType(st) == BoolST())) {
-        BinaryOperatorError(pos, "&&", Set("bool"))
+      val t1 = expr1.getType(st)
+      val t2 = expr2.getType(st)
+      if (!(t1 == BoolST() && t2 == BoolST())) {
+        BinaryOperatorError(pos, "&&", Set("bool"), t1.toString, t2.toString)
         return false
       }
       expr1.check(st) && expr2.check(st)
@@ -1087,8 +1116,10 @@ object ast {
   case class Or(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       println("Checking Or")
-      if (!(expr1.getType(st) == BoolST() && expr2.getType(st) == BoolST())) {
-        BinaryOperatorError(pos, "||", Set("bool"))
+      val t1 = expr1.getType(st)
+      val t2 = expr2.getType(st)
+      if (!(t1 == BoolST() && t2 == BoolST())) {
+        BinaryOperatorError(pos, "||", Set("bool"), t1.toString, t2.toString)
         return false
       }
       expr1.check(st) && expr2.check(st)
