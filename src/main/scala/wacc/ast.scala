@@ -60,12 +60,12 @@ object ast {
       var result = true
       val funSTs = new ListBuffer[SymbolTable]()
       for (f <- functions) {
-        val funST = f.checkParam(st)
-        if (funST == null) {
-          return false
+        f.checkParam(st) match {
+          case Some(x) => funSTs += x
+          case None => result = false
         }
-        funSTs += funST
       }
+      if (!result) return false
       for (i <- functions.indices) {
         val funST = funSTs(i)
         val f = functions(i)
@@ -87,22 +87,19 @@ object ast {
   // <FUNC>
 
   case class Func(t: Type, ident: Ident, vars: List[Param], stat: List[Stat])(val pos: (Int, Int)) extends ASTNode {
-    def checkParam(st: SymbolTable)(implicit err: SemanticError): SymbolTable = {
+    def checkParam(st: SymbolTable)(implicit err: SemanticError): Option[SymbolTable] = {
       val query = st.lookup(ident.name + "()")
       if (query.isDefined) {
         WaccSemanticErrorBuilder(pos, "Function " + ident.name + " already defined")
-        return null
+        return None
       }
       val funST = new SymbolTable(Some(st))
-      for (v <- vars) {
-        if (!v.check(funST)) {
-          return null
-        }
-        funST.add(v.ident.name, v.getType(st), v)
-      }
+      if (!vars.forall(v => v.check(funST)))
+        return None
+      vars.foreach(v => funST.add(v.ident.name, v.getType(st), v))
       st.add(ident.name + "()", t.getType(st), this)
       st.addChildFunc(ident.name, funST)
-      funST
+      Some(funST)
     }
 
     def checkStat(funST: SymbolTable)(implicit errors: SemanticError): Boolean = {
@@ -110,11 +107,8 @@ object ast {
       val st = funStatST.parentTable.get
       funStatST.isFunctionBody = true
       funStatST.functionReturnType = Some(t.getType(st))
-      for (s <- stat) {
-        if (!s.check(funStatST)) {
-          return false
-        }
-      }
+      if (!stat.forall(s => s.check(funStatST)))
+        return false
       stat.last match {
         case Return(_) =>
           true
@@ -590,18 +584,19 @@ object ast {
         WaccSemanticErrorBuilder(pos, ident.name + " has wrong number of arguments.\nGiven: " + argList.length + " Expected: " + dict.length)
         return false
       }
+      if (!argList.forall(_.check(st))) {
+        return false
+      }
+      var result = true
       for (i <- dict.indices) {
-        if (!argList(i).check(st)) {
-          return false
-        }
         val argType = argList(i).getType(st)
         val paramType = dict(i)._1
         if (typeCompare(argType, paramType) == VoidST()) {
           WaccSemanticErrorBuilder(argList(i).pos, ident.name + " has wrong type of arguments.\nGiven: " + argType.toString + " Expected: " + paramType.toString)
-          return false
+          result = false
         }
       }
-      true
+      result
     }
 
     override def getType(st: SymbolTable)(implicit errors: SemanticError): TypeST = {
