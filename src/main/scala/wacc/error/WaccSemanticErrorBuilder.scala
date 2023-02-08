@@ -54,9 +54,9 @@ object WaccSemanticErrorBuilder {
   case object TypeMismatchError {
     def apply(pos: (Int, Int), t1: String, t2: String)(implicit errors: SemanticError): Unit = {
       (t1, t2) match {
-        case ("void", "void") => WaccSemanticErrorBuilder(pos, s"Both types are invalid, encountered a semantic error before?")
-        case ("void", _) => WaccSemanticErrorBuilder(pos, s"The required type is invalid, encountered a semantic error before?")
-        case (_, "void") => WaccSemanticErrorBuilder(pos, s"The given type is invalid, encountered a semantic error before?")
+        case ("void", "void") => WaccSemanticErrorBuilder(pos, s"Type Comparison failed.\nBoth types are invalid, encountered a semantic error before?")
+        case ("void", _) => WaccSemanticErrorBuilder(pos, s"Type Comparison failed.\nThe required type is invalid, encountered a semantic error before?")
+        case (_, "void") => WaccSemanticErrorBuilder(pos, s"Type Comparison failed.\nThe given type is invalid, encountered a semantic error before?")
         case _ => WaccSemanticErrorBuilder(pos, s"Type mismatch.\nGiven: $t2, Required: $t1")
       }
     }
@@ -83,7 +83,7 @@ object WaccSemanticErrorBuilder {
         WaccSemanticErrorBuilder(pos, s"\"$command\" failed.\nThe given type is invalid, encountered a semantic error before?")
       else {
         val typesStr = types.mkString(", ")
-        WaccSemanticErrorBuilder(pos, s" \"$command\" can only be applied to $typesStr, but a $t is provided")
+        WaccSemanticErrorBuilder(pos, s"\"$command\" can only be applied to $typesStr, but a $t is provided")
       }
     }
   }
