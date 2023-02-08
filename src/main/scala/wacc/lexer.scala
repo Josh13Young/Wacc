@@ -6,6 +6,7 @@ import parsley.token.descriptions.{LexicalDesc, NameDesc, SpaceDesc}
 import parsley.token.predicate.Basic
 import parsley.token.symbol.ImplicitSymbol
 import parsley.token.{Lexer, predicate}
+import parsley.errors.combinator.ErrorMethods
 
 object lexer {
   private val keywords: Set[String] = Set("begin", "end", "is", "skip", "read", "free", "return",
@@ -44,10 +45,10 @@ object lexer {
   )
   private val lexer = new Lexer(desc)
 
-  val IDF: Parsley[String] = lexer.lexeme.names.identifier
-  val INT: Parsley[Int] = lexer.lexeme.numeric.signed.decimal32 // int32, 32-bit signed integer
-  val CHR: Parsley[Char] = lexer.lexeme.text.character.ascii
-  val STR: Parsley[String] = lexer.lexeme.text.string.ascii
+  val IDF: Parsley[String] = lexer.lexeme.names.identifier.label("identifier")
+  val INT: Parsley[Int] = lexer.lexeme.numeric.signed.decimal32.label("integer literal") // int32, 32-bit signed integer
+  val CHR: Parsley[Char] = lexer.lexeme.text.character.ascii.label("character literal")
+  val STR: Parsley[String] = lexer.lexeme.text.string.ascii.label("string literal")
 
   val implicits: ImplicitSymbol = lexer.lexeme.symbol.implicits
 

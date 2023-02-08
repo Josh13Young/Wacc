@@ -328,9 +328,7 @@ object ast {
       var trueHasReturnOrExit = false
       trueST.isFunctionBody = st.isFunctionBody
       trueST.functionReturnType = st.functionReturnType
-      println("trueST: " + trueStat)
       if (!trueStat.forall(_.check(trueST))) {
-        println("hi")
         return false
       }
       trueStat.last match {
@@ -857,7 +855,6 @@ object ast {
 
   case class Mod(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
-      if (!expr1.check(st) || !expr2.check(st)) return false
       val t1 = expr1.getType(st)
       val t2 = expr2.getType(st)
       if (t1 != IntST() || t2 != IntST()) {
