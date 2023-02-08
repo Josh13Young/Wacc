@@ -16,7 +16,7 @@ object Error {
     override def toString: String = {
       val sb = new StringBuilder
       sb.append("Syntax error\n")
-      sb.append("Unexpected " + unexpected.get + ".\n")
+      sb.append("Unexpected \"" + unexpected.get + "\".\n")
       if (expected.nonEmpty)
         sb.append("Expected one of: " + expected.mkString(", ") + ".\n")
       if (reasons.nonEmpty)
@@ -48,7 +48,9 @@ object Error {
     override def toString: String = item
   }
 
-  case object WaccErrorEndOfInput extends WaccErrorItem
+  case object WaccErrorEndOfInput extends WaccErrorItem {
+    override def toString: String = "End of file"
+  }
 
   case class WaccLineInfo(line: String, linesBefore: Seq[String], linesAfter: Seq[String], errorPointsAt: Int, errorWidth: Int) {
     override def toString: String = {

@@ -461,7 +461,7 @@ object ast {
 
     override def getType(st: SymbolTable)(implicit errors: SemanticError): TypeST = {
       var identType = ident.getType(st)
-      val bracket = "[]".repeat(exprList.length - 1)
+      val bracket = "[]" * (exprList.length - 1)
       for (_ <- 1 to exprList.length) {
         identType match {
           case ArrayST(t) =>
