@@ -16,11 +16,13 @@ object Error {
     override def toString: String = {
       val sb = new StringBuilder
       sb.append("Syntax error\n")
-      sb.append("Unexpected \"" + unexpected.get + "\".\n")
+      sb.append("Unexpected \"" + unexpected.get + "\"\n")
+      val expectedStr = if (expected.size == 1) expected.head.toString
+                        else expected.init.mkString(", ") + " or " + expected.last
       if (expected.nonEmpty)
-        sb.append("Expected one of: " + expected.mkString(", ") + ".\n")
+        sb.append("Expected: " + expectedStr + "\n")
       if (reasons.nonEmpty)
-        sb.append("Reasons: " + reasons.mkString(", ") + ".\n")
+        sb.append("Reason: " + reasons.mkString(", ") + "\n")
       sb.append(info)
       sb.toString()
     }
@@ -32,7 +34,7 @@ object Error {
     override def toString: String = {
       val sb = new StringBuilder
       sb.append("Semantic error\n")
-      sb.append(msg + ".\n")
+      sb.append(msg + "\n")
       sb.append(info)
       sb.toString()
     }
