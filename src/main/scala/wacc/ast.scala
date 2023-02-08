@@ -94,9 +94,14 @@ object ast {
         return None
       }
       val funST = new SymbolTable(Some(st))
-      if (!vars.forall(v => v.check(funST)))
-        return None
-      vars.foreach(v => funST.add(v.ident.name, v.getType(st), v))
+      var checkFail = false
+      for (v <- vars) {
+        if (!v.check(funST)) {
+          checkFail = true
+        }
+        funST.add(v.ident.name, v.t.getType(funST), v)
+      }
+      if (checkFail) return None
       st.add(ident.name + "()", t.getType(st), this)
       st.addChildFunc(ident.name, funST)
       Some(funST)
@@ -115,19 +120,19 @@ object ast {
         case Exit(_) =>
           true
         case If(_, _, _) =>
-          val ifStat = stat.last.asInstanceOf[If]
-          if (!ifStat.hasReturnOrExit) {
+          val hasReturnOrExit = stat.last.asInstanceOf[If].hasReturnOrExit
+          if (!hasReturnOrExit) {
             WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
             errors.isSemantic = false
           }
-          true
+          hasReturnOrExit
         case BeginStat(_) =>
-          val beginStat = stat.last.asInstanceOf[BeginStat]
-          if (!beginStat.hasReturnOrExit) {
+          val hasReturnOrExit = stat.last.asInstanceOf[BeginStat].hasReturnOrExit
+          if (!hasReturnOrExit) {
             WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
             errors.isSemantic = false
           }
-          true
+          hasReturnOrExit
         case _ =>
           WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
           errors.isSemantic = false
@@ -335,6 +340,9 @@ object ast {
         case If(_, _, _) =>
           val lastIf = trueStat.last.asInstanceOf[If]
           trueHasReturnOrExit = lastIf.hasReturnOrExit
+        case BeginStat(_) =>
+          val lastBegin = trueStat.last.asInstanceOf[BeginStat]
+          trueHasReturnOrExit = lastBegin.hasReturnOrExit
         case _ =>
       }
       val falseST = new SymbolTable(Option(st))
