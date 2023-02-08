@@ -83,7 +83,7 @@ object WaccSemanticErrorBuilder {
         WaccSemanticErrorBuilder(pos, s"\"$command\" failed.\nThe given type is invalid, encountered a semantic error before?")
       else {
         val typesStr = types.mkString(", ")
-        WaccSemanticErrorBuilder(pos, s" \"$command\" can only be applied to $typesStr, but a $t is provided")
+        WaccSemanticErrorBuilder(pos, s"\"$command\" can only be applied to $typesStr, but a $t is provided")
       }
     }
   }
