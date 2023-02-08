@@ -118,20 +118,23 @@ object ast {
         case If(_, _, _) =>
           val hasReturnOrExit = stat.last.asInstanceOf[If].hasReturnOrExit
           if (!hasReturnOrExit) {
-            WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
             errors.isSemantic = false
+            WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
+            errors.isSemantic = true
           }
           hasReturnOrExit
         case BeginStat(_) =>
           val hasReturnOrExit = stat.last.asInstanceOf[BeginStat].hasReturnOrExit
           if (!hasReturnOrExit) {
-            WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
             errors.isSemantic = false
+            WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
+            errors.isSemantic = true
           }
           hasReturnOrExit
         case _ =>
-          WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
           errors.isSemantic = false
+          WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
+          errors.isSemantic = true
           false
       }
     }

@@ -18,7 +18,7 @@ object Error {
       sb.append("Syntax error\n")
       sb.append("Unexpected \"" + unexpected.get + "\"\n")
       val expectedStr = if (expected.size == 1) expected.head.toString
-                        else expected.init.mkString(", ") + " or " + expected.last
+      else expected.init.mkString(", ") + " or " + expected.last
       if (expected.nonEmpty)
         sb.append("Expected: " + expectedStr + "\n")
       if (reasons.nonEmpty)
@@ -30,10 +30,13 @@ object Error {
 
   case class WaccSpecialisedError(msgs: List[String], info: WaccLineInfo) extends WaccErrorLines
 
-  case class WaccSemanticError(msg: String, info: WaccLineInfo) extends WaccErrorLines {
+  case class WaccSemanticError(msg: String, isSemantic: Boolean, info: WaccLineInfo) extends WaccErrorLines {
     override def toString: String = {
       val sb = new StringBuilder
-      sb.append("Semantic error\n")
+      if (isSemantic)
+        sb.append("Semantic error\n")
+      else
+        sb.append("Syntax error\n") // not really :(
       sb.append(msg + "\n")
       sb.append(info)
       sb.toString()
