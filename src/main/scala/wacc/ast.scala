@@ -120,7 +120,6 @@ object ast {
           if (!hasReturnOrExit) {
             errors.isSemantic = false
             WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
-            errors.isSemantic = true
           }
           hasReturnOrExit
         case BeginStat(_) =>
@@ -128,13 +127,11 @@ object ast {
           if (!hasReturnOrExit) {
             errors.isSemantic = false
             WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
-            errors.isSemantic = true
           }
           hasReturnOrExit
         case _ =>
           errors.isSemantic = false
           WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
-          errors.isSemantic = true
           false
       }
     }
