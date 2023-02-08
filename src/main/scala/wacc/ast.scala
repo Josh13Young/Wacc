@@ -73,11 +73,7 @@ object ast {
           result = false
         }
       }
-      for (s <- stat) {
-        if (!s.check(st)) {
-          result = false
-        }
-      }
+      result &= stat.forall(_.check(st))
       result
     }
   }
@@ -158,8 +154,6 @@ object ast {
       }
       true
     }
-
-    def getType(st: SymbolTable): TypeST = t.getType(st)
   }
 
   object Param extends ParserBridgePos2[Type, Ident, Param]
@@ -490,18 +484,15 @@ object ast {
   case class FstElem(lvalue: Lvalue)(val pos: (Int, Int)) extends PairElem {
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       lvalue.getType(st) match {
-        case PairST(_, _) =>
-          lvalue.check(st)
-        case _ =>
-          false
+        case PairST(_, _) => lvalue.check(st)
+        case _ => false
       }
     }
 
     override def getType(st: SymbolTable)(implicit errors: SemanticError): TypeST = {
       lvalue.getType(st) match {
         case PairST(t1, _) => t1
-        case _ =>
-          VoidST()
+        case _ => VoidST()
       }
     }
   }
@@ -511,18 +502,15 @@ object ast {
   case class SndElem(lvalue: Lvalue)(val pos: (Int, Int)) extends PairElem {
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       lvalue.getType(st) match {
-        case PairST(_, _) =>
-          lvalue.check(st)
-        case _ =>
-          false
+        case PairST(_, _) => lvalue.check(st)
+        case _ => false
       }
     }
 
     override def getType(st: SymbolTable)(implicit errors: SemanticError): TypeST = {
       lvalue.getType(st) match {
         case PairST(_, t2) => t2
-        case _ =>
-          VoidST()
+        case _ => VoidST()
       }
     }
   }
@@ -610,7 +598,7 @@ object ast {
     override def getType(st: SymbolTable)(implicit errors: SemanticError): TypeST = {
       val query = st.lookupAll(ident.name + "()")
       if (query.isEmpty) {
-        WaccSemanticErrorBuilder(pos, "function" + ident.name + " is not defined")
+        WaccSemanticErrorBuilder(pos, "function " + ident.name + " is not defined")
         return VoidST()
       }
       query.get._1
