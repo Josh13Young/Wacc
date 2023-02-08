@@ -60,12 +60,12 @@ object ast {
       var result = true
       val funSTs = new ListBuffer[SymbolTable]()
       for (f <- functions) {
-        val funST = f.checkParam(st)
-        if (funST == null) {
-          return false
+        f.checkParam(st) match {
+          case Some(x) => funSTs += x
+          case None => result = false
         }
-        funSTs += funST
       }
+      if (!result) return false
       for (i <- functions.indices) {
         val funST = funSTs(i)
         val f = functions(i)
@@ -87,22 +87,22 @@ object ast {
   // <FUNC>
 
   case class Func(t: Type, ident: Ident, vars: List[Param], stat: List[Stat])(val pos: (Int, Int)) extends ASTNode {
-    def checkParam(st: SymbolTable)(implicit err: SemanticError): SymbolTable = {
+    def checkParam(st: SymbolTable)(implicit err: SemanticError): Option[SymbolTable] = {
       val query = st.lookup(ident.name + "()")
       if (query.isDefined) {
         WaccSemanticErrorBuilder(pos, "Function " + ident.name + " already defined")
-        return null
+        return None
       }
       val funST = new SymbolTable(Some(st))
       for (v <- vars) {
         if (!v.check(funST)) {
-          return null
+          return None
         }
         funST.add(v.ident.name, v.getType(st), v)
       }
       st.add(ident.name + "()", t.getType(st), this)
       st.addChildFunc(ident.name, funST)
-      funST
+      Some(funST)
     }
 
     def checkStat(funST: SymbolTable)(implicit errors: SemanticError): Boolean = {
