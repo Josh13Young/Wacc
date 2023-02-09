@@ -1,7 +1,7 @@
 package wacc.error
 
 import parsley.errors.{ErrorBuilder, Token}
-import parsley.errors.tokenextractors.MatchParserDemand
+import parsley.errors.tokenextractors.{MatchParserDemand, TillNextWhitespace}
 import wacc.error.Error._
 
 class WaccErrorBuilder extends ErrorBuilder[WaccError] {
@@ -60,7 +60,7 @@ class WaccErrorBuilder extends ErrorBuilder[WaccError] {
   override val endOfInput: EndOfInput = WaccErrorEndOfInput
 
   override def unexpectedToken(cs: Iterable[Char], amountOfInputParserWanted: Int, lexicalError: Boolean): Token =
-    MatchParserDemand.unexpectedToken(cs, amountOfInputParserWanted)
+    TillNextWhitespace.unexpectedToken(cs, amountOfInputParserWanted)
 }
 
 
