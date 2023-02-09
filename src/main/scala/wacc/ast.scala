@@ -337,12 +337,8 @@ object ast {
       trueStat.last match {
         case Return(_) => trueHasReturnOrExit = true
         case Exit(_) => trueHasReturnOrExit = true
-        case If(_, _, _) =>
-          val lastIf = trueStat.last.asInstanceOf[If]
-          trueHasReturnOrExit = lastIf.hasReturnOrExit
-        case BeginStat(_) =>
-          val lastBegin = trueStat.last.asInstanceOf[BeginStat]
-          trueHasReturnOrExit = lastBegin.hasReturnOrExit
+        case lastIf@If(_, _, _) => trueHasReturnOrExit = lastIf.hasReturnOrExit
+        case lastBegin@BeginStat(_) => trueHasReturnOrExit = lastBegin.hasReturnOrExit
         case _ =>
       }
       val falseST = new SymbolTable(Option(st))
@@ -355,12 +351,8 @@ object ast {
       falseStat.last match {
         case Return(_) => falseHasReturnOrExit = true
         case Exit(_) => falseHasReturnOrExit = true
-        case If(_, _, _) =>
-          val lastIf = falseStat.last.asInstanceOf[If]
-          falseHasReturnOrExit = lastIf.hasReturnOrExit
-        case BeginStat(_) =>
-          val lastBegin = falseStat.last.asInstanceOf[BeginStat]
-          falseHasReturnOrExit = lastBegin.hasReturnOrExit
+        case lastIf@If(_, _, _) => falseHasReturnOrExit = lastIf.hasReturnOrExit
+        case lastBegin@BeginStat(_) => falseHasReturnOrExit = lastBegin.hasReturnOrExit
         case _ =>
       }
       hasReturnOrExit = trueHasReturnOrExit && falseHasReturnOrExit
