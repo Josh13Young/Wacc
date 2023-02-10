@@ -12,7 +12,7 @@ build-job:
 parser-test-job:
   stage: test
   script:
-    - sbt "testOnly wacc.ParserTests"
+    - sbt "testOnly wacc.ParserTest"
 
 parser-basic-test:
   stage: test
