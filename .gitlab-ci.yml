@@ -25,3 +25,13 @@ parser-advanced-test:
     - sbt "testOnly wacc.functionTest"
     - sbt "testOnly wacc.arrayTest"
     - sbt "testOnly wacc.pairTest"
+    - sbt "testOnly wacc.errorTest"
+
+parser-semantic-test:
+  stage: test
+  script:
+    - sbt "testOnly wacc.arraySemanticTest"
+    - sbt "testOnly wacc.exitTest"
+    - sbt "testOnly wacc.ioTest"
+    - sbt "testOnly wacc.multipeTest"
+    - sbt "testOnly wacc.readTest"

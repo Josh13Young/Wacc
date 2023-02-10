@@ -3,6 +3,7 @@ package wacc
 import org.scalatest.flatspec.AnyFlatSpec
 
 class basicTest extends AnyFlatSpec {
+  
   "expression syntax errors" should "all fail" in {
     helperFunction.syntaxErrAllFail("wacc_examples/invalid/syntaxErr/expressions")
   }

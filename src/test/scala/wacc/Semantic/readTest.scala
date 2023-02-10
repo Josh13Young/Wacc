@@ -5,7 +5,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class readTest extends AnyFlatSpec {
 
   "read semantic errors" should "all fail" in {
-    helperFunction.syntaxErrAllFail("wacc_examples/invalid/semanticErr/read")
+    helperFunction.validCasesAllSucceed("wacc_examples/invalid/semanticErr/read")
   }
 
 }

@@ -5,8 +5,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class exitTest extends AnyFlatSpec {
 
   "exit semantic errors" should "all fail" in {
-    helperFunction.syntaxErrAllFail("wacc_examples/invalid/semanticErr/exit")
+    helperFunction.validCasesAllSucceed("wacc_examples/invalid/semanticErr/exit")
   }
-
   
 }

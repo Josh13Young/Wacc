@@ -5,8 +5,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class ioTest extends AnyFlatSpec {
 
   "io semantic errors" should "all fail" in {
-    helperFunction.syntaxErrAllFail("wacc_examples/invalid/semanticErr/IO")
+    helperFunction.validCasesAllSucceed("wacc_examples/invalid/semanticErr/IO")
   }
-
   
 }
