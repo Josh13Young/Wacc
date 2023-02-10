@@ -32,6 +32,6 @@ parser-semantic-test:
   script:
     - sbt "testOnly wacc.arraySemanticTest"
     - sbt "testOnly wacc.exitTest"
-    - sbt "testOnly wacc.ioTest"
+    - sbt "testOnly wacc.IOTest"
     - sbt "testOnly wacc.multipeTest"
     - sbt "testOnly wacc.readTest"
