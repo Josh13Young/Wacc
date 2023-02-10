@@ -1,7 +1,7 @@
 package wacc.error
 
 import parsley.errors.{ErrorBuilder, Token}
-import parsley.errors.tokenextractors.{MatchParserDemand, TillNextWhitespace}
+import parsley.errors.tokenextractors.TillNextWhitespace
 import wacc.error.Error._
 
 class WaccErrorBuilder extends ErrorBuilder[WaccError] {

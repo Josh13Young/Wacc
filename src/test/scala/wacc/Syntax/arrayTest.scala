@@ -2,7 +2,7 @@ package wacc
 
 import org.scalatest.flatspec.AnyFlatSpec
 
-class arrayTest extends AnyFlatSpec{
+class arrayTest extends AnyFlatSpec {
   "array syntax errors" should "all fail" in {
     helperFunction.syntaxErrAllFail("wacc_examples/invalid/syntaxErr/array")
   }
