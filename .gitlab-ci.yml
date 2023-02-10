@@ -37,5 +37,5 @@ semantic-test:
     - sbt "testOnly wacc.arraySemanticTest"
     - sbt "testOnly wacc.exitTest"
     - sbt "testOnly wacc.IOTest"
-    - sbt "testOnly wacc.multipeTest"
+    - sbt "testOnly wacc.multipleTest"
     - sbt "testOnly wacc.readTest"

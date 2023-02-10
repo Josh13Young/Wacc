@@ -11,5 +11,5 @@ class arrayTest extends AnyFlatSpec {
   "expression valid examples" should "all succeed" in {
     helperFunction.validCasesAllSucceed("wacc_examples/valid/array")
   }
-  
+
 }

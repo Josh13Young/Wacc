@@ -7,7 +7,7 @@ import parsley.{Failure, Success}
 
 import java.io.File
 
-object helperFunction extends AnyFlatSpec{
+object helperFunction extends AnyFlatSpec {
 
   def getListOfFiles(dir: String): List[File] = {
     val d = new File(dir)
@@ -39,7 +39,7 @@ object helperFunction extends AnyFlatSpec{
   }
 
   def semanticErrAllFail(dir: String): Unit = {
-  
+
     val files = helperFunction.getListOfFiles(dir)
     for (file <- files) {
       val source = scala.io.Source.fromFile(file)
@@ -60,4 +60,5 @@ object helperFunction extends AnyFlatSpec{
       }
     }
   }
+
 }

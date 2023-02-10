@@ -1,12 +1,9 @@
 package wacc
 
-import wacc.TestErrors.TestErrorBuilder
-
-import org.scalatest._
-import flatspec._
+import org.scalatest.flatspec._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
-
 import parsley.{Failure, Success}
+import wacc.TestErrors.TestErrorBuilder
 
 class errorTest extends AnyFlatSpec {
 
@@ -104,7 +101,7 @@ class errorTest extends AnyFlatSpec {
     val input = "begin\n  println \"Hello \" ++ \"World!\"\nend"
     val output = parseOutput(input)
 
-    val answer =  "TestError((2,22),VanillaError(Some(TestNamed(space)),Set(TestNamed(digit)),Set()))"
+    val answer = "TestError((2,22),VanillaError(Some(TestNamed(space)),Set(TestNamed(digit)),Set()))"
 
     output shouldBe answer
   }
@@ -113,7 +110,7 @@ class errorTest extends AnyFlatSpec {
     val input = "begin\n  if true\n  then\n    skip\n  fi\nend"
     val output = parseOutput(input)
 
-    val answer =  "TestError((5,3),VanillaError(Some(TestRaw(fi\ne)),Set(TestNamed(else)),Set()))"
+    val answer = "TestError((5,3),VanillaError(Some(TestRaw(fi\ne)),Set(TestNamed(else)),Set()))"
 
     output shouldBe answer
   }
@@ -122,7 +119,7 @@ class errorTest extends AnyFlatSpec {
     val input = "begin\n  if true\n  then\n    skip\n  else\n    skip\nend"
     val output = parseOutput(input)
 
-    val answer =  "TestError((7,1),VanillaError(Some(TestRaw(en)),Set(TestNamed(fi)),Set()))"
+    val answer = "TestError((7,1),VanillaError(Some(TestRaw(en)),Set(TestNamed(fi)),Set()))"
 
     output shouldBe answer
   }
@@ -131,7 +128,7 @@ class errorTest extends AnyFlatSpec {
     val input = "begin\n  if true\n  else\n    skip\n  fi\nend"
     val output = parseOutput(input)
 
-    val answer =  "TestError((3,3),VanillaError(Some(TestRaw(else)),Set(TestNamed(binary operator), TestNamed(then)),Set()))"
+    val answer = "TestError((3,3),VanillaError(Some(TestRaw(else)),Set(TestNamed(binary operator), TestNamed(then)),Set()))"
 
     output shouldBe answer
   }
@@ -140,19 +137,19 @@ class errorTest extends AnyFlatSpec {
     val input = "begin\n  ifi true\n  then\n    skip\n  else\n    skip\n  fi\nend"
     val output = parseOutput(input)
 
-    val answer =  "TestError((2,7),VanillaError(Some(TestRaw(t)),Set(TestNamed(index), TestNamed(assignment)),Set()))"
+    val answer = "TestError((2,7),VanillaError(Some(TestRaw(t)),Set(TestNamed(index), TestNamed(assignment)),Set()))"
 
     output shouldBe answer
   }
 
-  private def parseOutput(input: String) : String = {
+  private def parseOutput(input: String): String = {
     var output = ""
-    implicit val eb = new TestErrorBuilder
+    implicit val eb: TestErrorBuilder = new TestErrorBuilder
     parser.parser.parse(input) match {
-      case Success(x) => output = (s"$x")
-      case Failure(msg) => output = (msg.toString())
+      case Success(x) => output = s"$x"
+      case Failure(msg) => output = msg.toString
     }
-    return output
+    output
   }
-  
+
 }
