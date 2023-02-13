@@ -14,6 +14,9 @@ object Translator {
         s"\tpop {${regList.map(reg => reg.toString).mkString(", ")}}\n"
       case Mov(dest, src) =>
         s"\tmov ${dest.toString}, ${src.toString}\n"
+      case BranchLink(label) =>
+        s"\tbl $label\n"
+      case _ => ""
     }
   }
 }

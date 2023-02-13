@@ -1,8 +1,8 @@
 package wacc.backend
 
-import Instruction._
-import Operand._
 import wacc.ast._
+import wacc.backend.Instruction._
+import wacc.backend.Operand._
 import wacc.backend.Translator.translate
 
 import scala.collection.mutable.ListBuffer
@@ -15,14 +15,14 @@ object CodeGenerator {
   }
 
   def generate(ast: ASTNode): ListBuffer[Instruction] = {
-    val mainStart = new ListBuffer[Instruction]()
-    mainStart += Label("main")
-    mainStart += Push(List(FramePointer(), LinkRegister()))
-    mainStart += Mov(FramePointer(), StackPointer())
+    val mainStart = ListBuffer(
+      Label("main"),
+      Push(List(FramePointer(), LinkRegister())),
+      Mov(FramePointer(), StackPointer()))
 
-    val mainEnd = new ListBuffer[Instruction]()
-    mainEnd += Mov(Reg(0), Immediate(0))
-    mainEnd += Pop(List(FramePointer(), LinkRegister()))
+    val mainEnd = ListBuffer(
+      Mov(StackPointer(), FramePointer()),
+      Pop(List(FramePointer(), LinkRegister())))
 
     ast match {
       case Program(functions, stat) =>
@@ -30,8 +30,8 @@ object CodeGenerator {
         mainStart ++ statGen.flatten ++ mainEnd
       case Exit(expr) =>
         val exitGen = exprGen(expr, 8)
-        val exit = Mov(Reg(0), Reg(8))
-        exitGen += exit
+        val exit = ListBuffer(Mov(Reg(0), Reg(8)), BranchLink("exit"))
+        exitGen ++ exit
       case _ => ListBuffer()
     }
   }

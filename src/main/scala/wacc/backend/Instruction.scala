@@ -14,4 +14,6 @@ object Instruction {
 
   case class Label(name: String) extends Instruction // probably not belong here
 
+  case class BranchLink(label: String) extends Instruction
+
 }
