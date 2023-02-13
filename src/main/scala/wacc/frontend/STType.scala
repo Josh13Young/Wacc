@@ -1,4 +1,4 @@
-package wacc
+package wacc.frontend
 
 object STType {
   sealed trait TypeST {

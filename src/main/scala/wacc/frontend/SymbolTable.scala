@@ -1,7 +1,7 @@
-package wacc
+package wacc.frontend
 
-import wacc.STType.TypeST
 import wacc.ast.ASTNode
+import wacc.frontend.STType.TypeST
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
