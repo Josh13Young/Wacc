@@ -86,13 +86,13 @@ object CodeGenerator {
       case BoolLiter(value) =>
         ListBuffer(Mov(Reg(reg), Immediate(if (value) 1 else 0)), Mov(Reg(0), Reg(reg)))
       case Mul(expr1, expr2) =>
-        val mulGen = exprGen(expr1, 8) ++ ListBuffer(Push(List(Reg(8)))) ++ exprGen(expr2, 9) ++ ListBuffer(Mov(Reg(9), Reg(8)),Pop(List(Reg(8))))
+        val mulGen = exprGen(expr1, 8) ++ ListBuffer(Push(List(Reg(8)))) ++ exprGen(expr2, 8) ++ ListBuffer(Mov(Reg(9), Reg(8)),Pop(List(Reg(8))))
         val mul = ListBuffer(MulInstr(Reg(8), Reg(9), Reg(8), Reg(9)), Compare(Reg(9), Operand2(Reg(8), "asr", Immediate(31))))
         nonMainFunc += ("print_str" -> printString())
         nonMainFunc += ("overflow_error" -> overflowError())
         mulGen ++ mul ++ ListBuffer(BranchLinkWithCond("vs", "overflow_error"), Mov(Reg(0), Reg(reg)))
       case Add(expr1, expr2) =>
-        val addGen = exprGen(expr1, 8) ++ ListBuffer(Push(List(Reg(0)))) ++ exprGen(expr2, 9) ++ ListBuffer(Mov(Reg(9), Reg(0)),Pop(List(Reg(8))))
+        val addGen = exprGen(expr1, 8) ++ ListBuffer(Push(List(Reg(8)))) ++ exprGen(expr2, 8) ++ ListBuffer(Mov(Reg(9), Reg(8)),Pop(List(Reg(8))))
         val add = ListBuffer(AddInstr(Reg(8), Reg(8), Reg(9)))
         nonMainFunc += ("print_str" -> printString())
         nonMainFunc += ("overflow_error" -> overflowError())
