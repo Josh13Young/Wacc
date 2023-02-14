@@ -12,7 +12,7 @@ build-job:
 parser-test-job:
   stage: test
   script:
-    - sbt "testOnly wacc.ParserTests"
+    - sbt "testOnly wacc.ParserTest"
 
 parser-basic-test:
   stage: test
@@ -25,3 +25,17 @@ parser-advanced-test:
     - sbt "testOnly wacc.functionTest"
     - sbt "testOnly wacc.arrayTest"
     - sbt "testOnly wacc.pairTest"
+
+error-test:
+  stage: test
+  script: 
+    - sbt "testOnly wacc.errorTest"
+
+semantic-test:
+  stage: test
+  script:
+    - sbt "testOnly wacc.arraySemanticTest"
+    - sbt "testOnly wacc.exitTest"
+    - sbt "testOnly wacc.IOTest"
+    - sbt "testOnly wacc.multipleTest"
+    - sbt "testOnly wacc.readTest"

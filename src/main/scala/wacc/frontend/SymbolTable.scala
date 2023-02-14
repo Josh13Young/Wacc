@@ -18,10 +18,12 @@ class SymbolTable(parent: Option[SymbolTable]) {
     dictionary += (name -> (t, node))
   }
 
+  // only look up in current symbol table
   def lookup(name: String): Option[(TypeST, ASTNode)] = {
     dictionary.get(name)
   }
 
+  // Look up all parenting symbol tables
   def lookupAll(name: String): Option[(TypeST, ASTNode)] = {
     var currST = Option(this)
     while (currST.isDefined) {
@@ -37,6 +39,7 @@ class SymbolTable(parent: Option[SymbolTable]) {
     childFunctions += Map(name -> st)
   }
 
+  // Same idea as lookupAll but get the symbol table instead of the type
   def locateST(name: String): Option[SymbolTable] = {
     var currST = Option(this)
     while (currST.isDefined) {
@@ -48,7 +51,7 @@ class SymbolTable(parent: Option[SymbolTable]) {
     None
   }
 
-  def getChildFunc(name:String) : SymbolTable = {
+  def getChildFunc(name: String): SymbolTable = {
     var symbolTable = new SymbolTable(None)
     for (func <- childFunctions) {
       val result = func.find(_._1 == name)
@@ -61,9 +64,5 @@ class SymbolTable(parent: Option[SymbolTable]) {
 
   def dictToList(): List[(TypeST, ASTNode)] = {
     dictionary.toList.map(x => (x._2._1, x._2._2))
-  }
-
-  override def toString: String = {
-    dictionary.toString() + "\n" + "childFunctions: " + childFunctions.toString()
   }
 }

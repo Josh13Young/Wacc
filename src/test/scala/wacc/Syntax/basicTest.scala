@@ -3,6 +3,7 @@ package wacc
 import org.scalatest.flatspec.AnyFlatSpec
 
 class basicTest extends AnyFlatSpec {
+
   "expression syntax errors" should "all fail" in {
     helperFunction.syntaxErrAllFail("wacc_examples/invalid/syntaxErr/expressions")
   }
@@ -11,10 +12,9 @@ class basicTest extends AnyFlatSpec {
     helperFunction.validCasesAllSucceed("wacc_examples/valid/expressions")
   }
 
-  // TODO: fix this test
-//  "basic syntax errors" should "all fail" in {
-//    helperFunction.syntaxErrAllFail("wacc_examples/invalid/syntaxErr/basic")
-//  }
+  "basic syntax errors" should "all fail" in {
+    helperFunction.syntaxErrAllFail("wacc_examples/invalid/syntaxErr/basic")
+  }
 
   "basic valid examples" should "all succeed" in {
     helperFunction.validCasesAllSucceed("wacc_examples/valid/basic/exit")

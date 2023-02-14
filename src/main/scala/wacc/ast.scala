@@ -60,6 +60,8 @@ object ast {
     def check(st: SymbolTable)(implicit err: SemanticError): Boolean = {
       var result = true
       val funSTs = new ListBuffer[SymbolTable]()
+      // check parameters of all functions first, then check their body
+      // add resulting symbol tables (for params) to list of functional symbol tables funSTs
       for (f <- functions) {
         f.checkParam(st) match {
           case Some(x) => funSTs += x
@@ -100,11 +102,13 @@ object ast {
       }
       if (checkFail) return None
       st.add(ident.name + "()", t.getType(st), this)
+      // main st add child function table of this function
       st.addChildFunc(ident.name, funST)
       Some(funST)
     }
 
     def checkStat(funST: SymbolTable)(implicit errors: SemanticError): Boolean = {
+      // new function symbol table for function body
       val funStatST = new SymbolTable(Some(funST))
       val st = funStatST.parentTable.get
       funStatST.isFunctionBody = true
@@ -116,23 +120,21 @@ object ast {
           true
         case Exit(_) =>
           true
-        case If(_, _, _) =>
-          val hasReturnOrExit = stat.last.asInstanceOf[If].hasReturnOrExit
-          if (!hasReturnOrExit) {
-            WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
+        case ifStat@If(_, _, _) =>
+          if (!ifStat.hasReturnOrExit) {
             errors.isSemantic = false
-          }
-          hasReturnOrExit
-        case BeginStat(_) =>
-          val hasReturnOrExit = stat.last.asInstanceOf[BeginStat].hasReturnOrExit
-          if (!hasReturnOrExit) {
             WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
-            errors.isSemantic = false
           }
-          hasReturnOrExit
+          ifStat.hasReturnOrExit
+        case beginStat@BeginStat(_) =>
+          if (!beginStat.hasReturnOrExit) {
+            errors.isSemantic = false
+            WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
+          }
+          beginStat.hasReturnOrExit
         case _ =>
-          WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
           errors.isSemantic = false
+          WaccSemanticErrorBuilder(pos, "Function " + ident.name + " does not return or exit a value")
           false
       }
     }
@@ -182,14 +184,13 @@ object ast {
       val resType = typeCompare(lhsType, rhsType)
       if (!typeCheck(resType)) {
         TypeMismatchError(pos, lhsType.toString, rhsType.toString)
-        false
-      } else {
-        if (!rvalue.check(st)) {
-          return false
-        }
-        st.add(ident.name, resType, rvalue)
-        true
+        return false
       }
+      if (!rvalue.check(st)) {
+        return false
+      }
+      st.add(ident.name, resType, rvalue)
+      true
     }
   }
 
@@ -248,11 +249,12 @@ object ast {
 
   case class Free(expr: Expr)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
-      expr.getType(st) match {
+      val t = expr.getType(st)
+      t match {
         case ArrayST(_) => expr.check(st)
         case PairST(_, _) => expr.check(st)
         case _ =>
-          StatError(pos, "Free", Set("array", "pair"), expr.getType(st).toString)
+          StatError(pos, "Free", Set("array", "pair"), t.toString)
           false
       }
     }
@@ -286,8 +288,9 @@ object ast {
 
   case class Exit(expr: Expr)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
-      if (expr.getType(st) != IntST()) {
-        StatError(pos, "Exit", Set("int"), expr.getType(st).toString)
+      val t = expr.getType(st)
+      if (t != IntST()) {
+        StatError(pos, "Exit", Set("int"), t.toString)
         return false
       }
       expr.check(st)
@@ -335,12 +338,8 @@ object ast {
       trueStat.last match {
         case Return(_) => trueHasReturnOrExit = true
         case Exit(_) => trueHasReturnOrExit = true
-        case If(_, _, _) =>
-          val lastIf = trueStat.last.asInstanceOf[If]
-          trueHasReturnOrExit = lastIf.hasReturnOrExit
-        case BeginStat(_) =>
-          val lastBegin = trueStat.last.asInstanceOf[BeginStat]
-          trueHasReturnOrExit = lastBegin.hasReturnOrExit
+        case lastIf@If(_, _, _) => trueHasReturnOrExit = lastIf.hasReturnOrExit
+        case lastBegin@BeginStat(_) => trueHasReturnOrExit = lastBegin.hasReturnOrExit
         case _ =>
       }
       val falseST = new SymbolTable(Option(st))
@@ -353,12 +352,8 @@ object ast {
       falseStat.last match {
         case Return(_) => falseHasReturnOrExit = true
         case Exit(_) => falseHasReturnOrExit = true
-        case If(_, _, _) =>
-          val lastIf = falseStat.last.asInstanceOf[If]
-          falseHasReturnOrExit = lastIf.hasReturnOrExit
-        case BeginStat(_) =>
-          val lastBegin = falseStat.last.asInstanceOf[BeginStat]
-          falseHasReturnOrExit = lastBegin.hasReturnOrExit
+        case lastIf@If(_, _, _) => falseHasReturnOrExit = lastIf.hasReturnOrExit
+        case lastBegin@BeginStat(_) => falseHasReturnOrExit = lastBegin.hasReturnOrExit
         case _ =>
       }
       hasReturnOrExit = trueHasReturnOrExit && falseHasReturnOrExit
@@ -533,8 +528,7 @@ object ast {
   case class ArrayLiter(exprList: List[Expr])(val pos: (Int, Int)) extends Rvalue {
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       var result = true
-      if (exprList.isEmpty) {
-      } else {
+      if (exprList.nonEmpty) {
         val elemType = exprList.head.getType(st)
         for (expr <- exprList) {
           if (!expr.check(st)) {
@@ -580,8 +574,9 @@ object ast {
         WaccSemanticErrorBuilder(pos, ident.name + " is not a defined function")
         return false
       }
-      // function found in symbol table
+      // function found in symbol table, get function param symbol table (not the table for function body)
       val funcST = query.get.getChildFunc(ident.name)
+      // the function param symbol table's dictionary should be all the params
       val dict = funcST.dictToList()
       if (dict.length != argList.length) {
         WaccSemanticErrorBuilder(pos, ident.name + " has wrong number of arguments.\nGiven: " + argList.length + " Expected: " + dict.length)

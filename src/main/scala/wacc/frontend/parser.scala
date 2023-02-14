@@ -26,7 +26,7 @@ object parser {
     If("if".label("if statement") ~> expr, "then" ~> stat, "else" ~> stat <~ "fi") |
     While("while".label("while loop") ~> expr, "do" ~> stat <~ "done") |
     BeginStat("begin" ~> stat <~ "end")
-  private lazy val stat: Parsley[List[Stat]] = sepBy1(statElem, ";".label("\";\""))
+  private lazy val stat: Parsley[List[Stat]] = sepBy1(statElem, ";".label("\";\"").hide)
 
   private lazy val lvalue: Parsley[Lvalue] = attempt(arrayElem) | ident | pairElem
   private lazy val pairElem = "fst" ~> FstElem(lvalue) | "snd" ~> SndElem(lvalue)
