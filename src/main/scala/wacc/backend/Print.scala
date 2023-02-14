@@ -21,26 +21,39 @@ object Print {
     )
   }
 
-  case class StrFuncGen(s: String, ind: String, size: Int) {
-    val _type: String = s
+  def printString(): ListBuffer[Instruction] = {
+    ListBuffer(
+      Label("print_str"),
+      Push(List(LinkRegister())),
+      Mov(Reg(2), Reg(0)),
+      Load(Reg(1), RegOffset(Reg(0), Immediate(-4))),
+      Load(Reg(0), LabelJump(addStrFun("%.*s"))),
+      BranchLink("printf"),
+      Mov(Reg(0), Immediate(0)),
+      BranchLink("fflush"),
+      Pop(List(ProgramCounter()))
+    )
+  }
+
+  case class StrFuncGen(content: String, ind: String, size: Int) {
     val label: String = s"msg_$ind"
     val instructions: ListBuffer[Instruction] = ListBuffer(
       Directive(s"word $size"),
       Label(label),
-      Directive(s"asciz \"$s\"")
+      Directive(s"asciz \"$content\"")
     )
   }
 
   private val PrintInstrMap: mutable.LinkedHashMap[String, StrFuncGen] = mutable.LinkedHashMap()
   private var funcTypeCount: Int = 0
 
-  private def addStrFun(_type: String): String = {
-    if (PrintInstrMap.contains(_type)) {
-      return PrintInstrMap(_type).label
+  def addStrFun(content: String): String = {
+    if (PrintInstrMap.contains(content)) {
+      return PrintInstrMap(content).label
     }
-    val msg = StrFuncGen(_type, funcTypeCount.toString, _type.length)
+    val msg = StrFuncGen(content, funcTypeCount.toString, content.length)
     funcTypeCount += 1
-    PrintInstrMap += (_type -> msg)
+    PrintInstrMap += (content -> msg)
     msg.label
   }
 

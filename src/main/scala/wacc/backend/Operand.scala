@@ -30,8 +30,8 @@ object Operand {
     override def toString: String = "pc"
   }
 
-  case class RegOffset(reg: Register, offset: Int) extends Operand {
-    override def toString: String = s"[$reg, #$offset]"
+  case class RegOffset(reg: Register, offset: Immediate) extends Operand {
+    override def toString: String = s"[$reg, $offset]"
   }
 
   case class LabelJump(label: String) extends Operand {
