@@ -1,6 +1,6 @@
 package wacc.backend
 
-import Instruction._
+import wacc.backend.Instruction._
 
 object Translator {
 
@@ -16,6 +16,10 @@ object Translator {
         s"\tmov ${dest.toString}, ${src.toString}\n"
       case BranchLink(label) =>
         s"\tbl $label\n"
+      case Directive(name) =>
+        s".$name\n"
+      case Load(dest, src) =>
+        s"\tldr ${dest.toString}, ${src.toString}\n"
       case _ => ""
     }
   }

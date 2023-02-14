@@ -1,6 +1,6 @@
 package wacc.backend
 
-import Operand._
+import wacc.backend.Operand._
 
 object Instruction {
 
@@ -15,5 +15,9 @@ object Instruction {
   case class Label(name: String) extends Instruction // probably not belong here
 
   case class BranchLink(label: String) extends Instruction
+
+  case class Directive(name: String) extends Instruction
+
+  case class Load(dest: Register, operand: Operand) extends Instruction
 
 }
