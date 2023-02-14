@@ -35,6 +35,19 @@ object Print {
     )
   }
 
+  def printChar(): ListBuffer[Instruction] = {
+    ListBuffer(
+      Label("print_char"),
+      Push(List(LinkRegister())),
+      Mov(Reg(1), Reg(0)),
+      Load(Reg(0), LabelJump(addStrFun("%c"))),
+      BranchLink("printf"),
+      Mov(Reg(0), Immediate(0)),
+      BranchLink("fflush"),
+      Pop(List(ProgramCounter()))
+    )
+  }
+
   def printLn(): ListBuffer[Instruction] = {
     ListBuffer(
       Label("print_ln"),
