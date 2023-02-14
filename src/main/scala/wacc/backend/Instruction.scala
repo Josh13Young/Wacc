@@ -16,6 +16,8 @@ object Instruction {
 
   case class BranchLink(label: String) extends Instruction
 
+  case class BranchLinkWithCond(cond: String, label: String) extends Instruction
+
   case class Directive(name: String) extends Instruction
 
   case class Load(dest: Register, operand: Operand) extends Instruction
@@ -24,4 +26,7 @@ object Instruction {
 
   case class Branch(cond: String, operand: Label) extends Instruction // todo change cond into enum
 
+  case class MulInstr(destLo: Register, destHi: Register, register1: Register, register2: Register) extends Instruction
+
+  case class AddInstr(dest: Register, operand1: Operand, operand2: Operand) extends Instruction
 }

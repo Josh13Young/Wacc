@@ -16,6 +16,8 @@ object Translator {
         s"\tmov ${dest.toString}, ${src.toString}\n"
       case BranchLink(label) =>
         s"\tbl $label\n"
+      case BranchLinkWithCond(cond, label) =>
+        s"\tbl$cond $label\n"
       case Directive(name) =>
         s".$name\n"
       case Load(dest, src) =>
@@ -24,6 +26,10 @@ object Translator {
         s"\tcmp ${reg.toString}, ${operand.toString}\n"
       case Branch(cond, label) =>
         s"\tb$cond ${label.name}\n"
+      case MulInstr(destLo, destHi, register1, register2) =>
+        s"\tsmull ${destLo.toString}, ${destHi.toString}, ${register1.toString}, ${register2.toString}\n"
+      case AddInstr(dest, operand1, operand2) =>
+        s"\tadds ${dest.toString}, ${operand1.toString}, ${operand2.toString}\n"
       case _ => ""
     }
   }

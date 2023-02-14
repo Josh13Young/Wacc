@@ -3,7 +3,7 @@ package wacc.backend
 import wacc.ast._
 import wacc.backend.Instruction._
 import wacc.backend.Operand._
-import wacc.backend.Print.{addStrFun, getPrintInstr, printBool, printChar, printInt, printLn, printString}
+import wacc.backend.Print.{addStrFun, getPrintInstr, overflowError, printBool, printChar, printInt, printLn, printString}
 import wacc.backend.Translator.translate
 
 import scala.collection.mutable.ListBuffer
@@ -56,6 +56,14 @@ object CodeGenerator {
             val print = ListBuffer(BranchLink("print_bool"))
             nonMainFunc += ("print_bool" -> printBool())
             printGen ++ print
+          case Add(_, _) =>
+            val print = ListBuffer(BranchLink("print_int"))
+            nonMainFunc += ("print_int" -> printInt())
+            printGen ++ print
+          case Mul(_, _) =>
+            val print = ListBuffer(BranchLink("print_int"))
+            nonMainFunc += ("print_int" -> printInt())
+            printGen ++ print
           case _ => ListBuffer()
         }
       case Println(expr) =>
@@ -77,6 +85,18 @@ object CodeGenerator {
         ListBuffer(Mov(Reg(reg), Immediate(value.toInt)), Mov(Reg(0), Reg(reg)))
       case BoolLiter(value) =>
         ListBuffer(Mov(Reg(reg), Immediate(if (value) 1 else 0)), Mov(Reg(0), Reg(reg)))
+      case Mul(expr1, expr2) =>
+        val mulGen = exprGen(expr1, 8) ++ exprGen(expr2, 9)
+        val mul = ListBuffer(MulInstr(Reg(8), Reg(9), Reg(8), Reg(9)), Compare(Reg(9), Operand2(Reg(8), "asr", Immediate(31))))
+        nonMainFunc += ("print_str" -> printString())
+        nonMainFunc += ("overflow_error" -> overflowError())
+        mulGen ++ mul ++ ListBuffer(BranchLinkWithCond("vs", "overflow_error"), Mov(Reg(0), Reg(reg)))
+      case Add(expr1, expr2) =>
+        val addGen = exprGen(expr1, 8) ++ exprGen(expr2, 9)
+        val add = ListBuffer(AddInstr(Reg(8), Reg(8), Reg(9)))
+        nonMainFunc += ("print_str" -> printString())
+        nonMainFunc += ("overflow_error" -> overflowError())
+        addGen ++ add ++ ListBuffer(BranchLinkWithCond("vs", "overflow_error"), Mov(Reg(0), Reg(reg)))
       case _ => ListBuffer()
     }
   }
