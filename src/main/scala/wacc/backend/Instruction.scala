@@ -29,4 +29,6 @@ object Instruction {
   case class MulInstr(destLo: Register, destHi: Register, register1: Register, register2: Register) extends Instruction
 
   case class AddInstr(dest: Register, operand1: Operand, operand2: Operand) extends Instruction
+
+  case class SubInstr(dest: Register, operand1: Operand, operand2: Operand) extends Instruction
 }

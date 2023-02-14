@@ -30,6 +30,8 @@ object Translator {
         s"\tsmull ${destLo.toString}, ${destHi.toString}, ${register1.toString}, ${register2.toString}\n"
       case AddInstr(dest, operand1, operand2) =>
         s"\tadds ${dest.toString}, ${operand1.toString}, ${operand2.toString}\n"
+      case SubInstr(dest, operand1, operand2) =>
+        s"\tsubs ${dest.toString}, ${operand1.toString}, ${operand2.toString}\n"
       case _ => ""
     }
   }
