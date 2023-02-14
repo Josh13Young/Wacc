@@ -1,13 +1,13 @@
-package wacc
+package wacc.frontend
 
 import parsley.Parsley
 import parsley.Parsley.{attempt, notFollowedBy, pure}
 import parsley.combinator._
+import parsley.errors.combinator.ErrorMethods
 import parsley.expr._
 import wacc.ast._
-import wacc.lexer._
-import wacc.lexer.implicits.implicitSymbol
-import parsley.errors.combinator.ErrorMethods
+import wacc.frontend.lexer._
+import wacc.frontend.lexer.implicits.implicitSymbol
 
 object parser {
   private lazy val program = Program("begin" ~> many(func), stat <~ "end")

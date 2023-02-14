@@ -1,12 +1,12 @@
-package wacc
+package wacc.frontend
 
 import parsley.Parsley
+import parsley.errors.combinator.ErrorMethods
 import parsley.token.descriptions.text.{EscapeDesc, TextDesc}
 import parsley.token.descriptions.{LexicalDesc, NameDesc, SpaceDesc}
 import parsley.token.predicate.Basic
 import parsley.token.symbol.ImplicitSymbol
 import parsley.token.{Lexer, predicate}
-import parsley.errors.combinator.ErrorMethods
 
 object lexer {
   private val keywords: Set[String] = Set("begin", "end", "is", "skip", "read", "free", "return",

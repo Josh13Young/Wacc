@@ -3,6 +3,7 @@ package wacc
 import org.scalatest.flatspec._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import parsley.{Failure, Success}
+import wacc.frontend.parser
 
 class ParserTest extends AnyFlatSpec {
 

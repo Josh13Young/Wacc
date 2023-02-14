@@ -2,6 +2,10 @@
 bin
 src/antlr
 
+#ignore generated jar and assembly files
+*.jar
+*.s
+
 #ignore Java class files
 *.class
 

@@ -3,9 +3,10 @@ package wacc
 import parsley.Parsley
 import parsley.implicits.zipped.{Zipped2, Zipped3, Zipped4}
 import parsley.position.pos
-import wacc.STType._
+import wacc.frontend.STType._
 import wacc.error.WaccSemanticErrorBuilder
 import wacc.error.WaccSemanticErrorBuilder._
+import wacc.frontend.SymbolTable
 
 import scala.collection.mutable.ListBuffer
 
