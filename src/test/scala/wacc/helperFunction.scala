@@ -4,7 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers.matchPattern
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import parsley.{Failure, Success}
-import wacc.frontend.parser
+import wacc.frontend.{SymbolTable, parser}
 
 import java.io.File
 

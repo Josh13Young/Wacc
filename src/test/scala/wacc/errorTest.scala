@@ -4,6 +4,7 @@ import org.scalatest.flatspec._
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import parsley.{Failure, Success}
 import wacc.TestErrors.TestErrorBuilder
+import wacc.frontend.parser
 
 class errorTest extends AnyFlatSpec {
 
