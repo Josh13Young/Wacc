@@ -48,6 +48,26 @@ object Print {
     )
   }
 
+  def printBool(): ListBuffer[Instruction] = {
+    ListBuffer(
+      Label("print_bool"),
+      Push(List(LinkRegister())),
+      Compare(Reg(0), Immediate(0)), // 0 is false
+      Branch("ne", Label("print_false")),
+      Load(Reg(2), LabelJump(addStrFun("false"))),
+      Branch("", Label("print_bool_cont")),
+      Label("print_false"),
+      Load(Reg(2), LabelJump(addStrFun("true"))),
+      Label("print_bool_cont"),
+      Load(Reg(1), RegOffset(Reg(2), Immediate(-4))),
+      Load(Reg(0), LabelJump(addStrFun("%.*s"))),
+      BranchLink("printf"),
+      Mov(Reg(0), Immediate(0)),
+      BranchLink("fflush"),
+      Pop(List(ProgramCounter()))
+    )
+  }
+
   def printLn(): ListBuffer[Instruction] = {
     ListBuffer(
       Label("print_ln"),
@@ -61,7 +81,7 @@ object Print {
   }
 
   case class StrFuncGen(content: String, ind: String, size: Int) {
-    val label: String = s"msg_$ind"
+    val label: String = s"str_$ind"
     val instructions: ListBuffer[Instruction] = ListBuffer(
       Directive(s"word $size"),
       Label(label),

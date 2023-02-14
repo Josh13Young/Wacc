@@ -20,6 +20,10 @@ object Translator {
         s".$name\n"
       case Load(dest, src) =>
         s"\tldr ${dest.toString}, ${src.toString}\n"
+      case Compare(reg, operand) =>
+        s"\tcmp ${reg.toString}, ${operand.toString}\n"
+      case Branch(cond, label) =>
+        s"\tb$cond ${label.name}\n"
       case _ => ""
     }
   }

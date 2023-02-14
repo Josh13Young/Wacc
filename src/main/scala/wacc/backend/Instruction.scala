@@ -20,4 +20,8 @@ object Instruction {
 
   case class Load(dest: Register, operand: Operand) extends Instruction
 
+  case class Compare(reg: Register, operand: Operand) extends Instruction
+
+  case class Branch(cond: String, operand: Label) extends Instruction // todo change cond into enum
+
 }
