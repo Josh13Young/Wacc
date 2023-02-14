@@ -32,6 +32,10 @@ object Translator {
         s"\tadds ${dest.toString}, ${operand1.toString}, ${operand2.toString}\n"
       case SubInstr(dest, operand1, operand2) =>
         s"\tsubs ${dest.toString}, ${operand1.toString}, ${operand2.toString}\n"
+      case AndInstr(dest, operand1, operand2) =>
+        s"\tand ${dest.toString}, ${operand1.toString}, ${operand2.toString}\n"
+      case OrInstr(dest, operand1, operand2) =>
+        s"\torr ${dest.toString}, ${operand1.toString}, ${operand2.toString}\n"
       case _ => ""
     }
   }
