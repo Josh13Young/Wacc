@@ -35,6 +35,18 @@ object Print {
     )
   }
 
+  def printLn(): ListBuffer[Instruction] = {
+    ListBuffer(
+      Label("print_ln"),
+      Push(List(LinkRegister())),
+      Load(Reg(0), LabelJump(addStrFun(""))),
+      BranchLink("puts"),
+      Mov(Reg(0), Immediate(0)),
+      BranchLink("fflush"),
+      Pop(List(ProgramCounter()))
+    )
+  }
+
   case class StrFuncGen(content: String, ind: String, size: Int) {
     val label: String = s"msg_$ind"
     val instructions: ListBuffer[Instruction] = ListBuffer(

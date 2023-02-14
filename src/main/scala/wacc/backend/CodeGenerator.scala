@@ -3,7 +3,7 @@ package wacc.backend
 import wacc.ast._
 import wacc.backend.Instruction._
 import wacc.backend.Operand._
-import wacc.backend.Print.{addStrFun, getPrintInstr, printInt, printString}
+import wacc.backend.Print.{addStrFun, getPrintInstr, printInt, printLn, printString}
 import wacc.backend.Translator.translate
 
 import scala.collection.mutable.ListBuffer
@@ -24,6 +24,7 @@ object CodeGenerator {
       Mov(FramePointer(), StackPointer()))
 
     val mainEnd = ListBuffer(
+      Mov(Reg(0), Immediate(0)),
       Mov(StackPointer(), FramePointer()),
       Pop(List(FramePointer(), ProgramCounter())))
 
@@ -40,15 +41,19 @@ object CodeGenerator {
         val printGen = exprGen(expr, 8)
         expr match {
           case IntLiter(_) =>
-            val print = ListBuffer(BranchLink("print_int"), Mov(Reg(0), Immediate(0)))
+            val print = ListBuffer(BranchLink("print_int"))
             nonMainFunc += ("print_int" -> printInt())
             printGen ++ print
           case StrLiter(_) =>
-            val print = ListBuffer(BranchLink("print_str"), Mov(Reg(0), Immediate(0)))
+            val print = ListBuffer(BranchLink("print_str"))
             nonMainFunc += ("print_str" -> printString())
             printGen ++ print
           case _ => ListBuffer()
         }
+      case Println(expr) =>
+        val normalPrint = generate(Print(expr)(expr.pos))
+        nonMainFunc += ("print_ln" -> printLn())
+        normalPrint ++ ListBuffer(BranchLink("print_ln"))
       case _ => ListBuffer()
     }
   }
