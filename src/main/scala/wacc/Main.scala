@@ -23,7 +23,7 @@ object Main {
           println(code)
           val fileName = args.head.split("/").last.split("\\.").head
           println(fileName) // generate fileName.s
-          val pw = new PrintWriter("fileName.s")
+          val pw = new PrintWriter(fileName + ".s")
           pw.write(code)
           pw.close()
         } else {
