@@ -48,6 +48,26 @@ object Print {
     )
   }
 
+  def overflowError(): ListBuffer[Instruction] = {
+    ListBuffer(
+      Label("overflow_error"),
+      Load(Reg(0), LabelJump(addStrFun("fatal error: integer overflow"))),
+      BranchLink("print_str"),
+      Mov(Reg(0), Immediate(255)),
+      BranchLink("exit")
+    )
+  }
+
+  def divideByZeroError(): ListBuffer[Instruction] = {
+    ListBuffer(
+      Label("divide_by_zero_error"),
+      Load(Reg(0), LabelJump(addStrFun("fatal error: divide by zero"))),
+      BranchLink("print_str"),
+      Mov(Reg(0), Immediate(255)),
+      BranchLink("exit")
+    )
+  }
+
   def printBool(): ListBuffer[Instruction] = {
     ListBuffer(
       Label("print_bool"),

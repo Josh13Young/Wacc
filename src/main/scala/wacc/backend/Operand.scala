@@ -37,4 +37,13 @@ object Operand {
   case class LabelJump(label: String) extends Operand {
     override def toString: String = s"=$label"
   }
+
+  case class ImmediateJump(imm: Immediate) extends Operand {
+    override def toString: String = s"=$imm"
+  }
+
+  // Operand2 see manual page 1-43 table 1-13
+  case class Operand2(reg: Reg, command: String, shift: Immediate) extends Operand {
+    override def toString: String = s"$reg, $command $shift"
+  }
 }
