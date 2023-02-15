@@ -36,6 +36,8 @@ object Translator {
         s"\tand ${dest.toString}, ${operand1.toString}, ${operand2.toString}\n"
       case OrInstr(dest, operand1, operand2) =>
         s"\torr ${dest.toString}, ${operand1.toString}, ${operand2.toString}\n"
+      case Store(dest, operand) =>
+        s"\tstr ${dest.toString}, ${operand.toString}\n"
       case _ => ""
     }
   }

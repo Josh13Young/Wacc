@@ -4,6 +4,7 @@ import wacc.ast._
 import wacc.backend.Instruction._
 import wacc.backend.Operand._
 import wacc.backend.Print._
+import wacc.backend.Stack.{addVar, getVar}
 import wacc.backend.Translator.translate
 
 import scala.collection.mutable.ListBuffer
@@ -33,6 +34,9 @@ object CodeGenerator {
         val statGen = stat.map(s => generate(s))
         mainStart ++ statGen.flatten ++ mainEnd ++ nonMainFunc.values.flatten ++ ListBuffer(Directive("data")) ++ getPrintInstr ++
           ListBuffer(Directive("text"))
+      case AssignNew(t, ident, rvalue) =>
+        val rv = rvalue.asInstanceOf[Expr]
+        exprGen(rv, 8) ++ addVar(ident.name, t, Reg(8)) ++ ListBuffer(Mov(Reg(0), Reg(8)))
       case Exit(expr) =>
         val exitGen = exprGen(expr, 8) ++ ListBuffer(Mov(Reg(0), Reg(8)))
         val exit = ListBuffer(Mov(Reg(0), Reg(8)), BranchLink("exit"))
@@ -56,7 +60,7 @@ object CodeGenerator {
             val print = ListBuffer(BranchLink("print_bool"))
             nonMainFunc += ("print_bool" -> printBool())
             printGen ++ print
-          case Add(_, _) | Mul(_, _) | Div(_, _) | Sub(_, _) | Mod(_, _) =>
+          case Add(_, _) | Mul(_, _) | Div(_, _) | Sub(_, _) | Mod(_, _) | Ident(_) =>
             val print = ListBuffer(BranchLink("print_int"))
             nonMainFunc += ("print_int" -> printInt())
             printGen ++ print
@@ -76,6 +80,8 @@ object CodeGenerator {
 
   private def exprGen(expr: Expr, reg: Int): ListBuffer[Instruction] = {
     expr match {
+      case Ident(name) =>
+        ListBuffer(Load(Reg(reg), getVar(name).get))
       case IntLiter(value) =>
         ListBuffer(Mov(Reg(reg), Immediate(value)))
       case StrLiter(value) =>
