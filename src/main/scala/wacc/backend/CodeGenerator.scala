@@ -41,6 +41,13 @@ object CodeGenerator {
       case AssignNew(t, ident, rvalue) =>
         val rv = rvalue.asInstanceOf[Expr]
         exprGen(rv, 8) ++ addVar(ident.name, st.lookup(ident.name).get._1, Reg(8)) ++ ListBuffer(Mov(Reg(0), Reg(8)))
+      case Assign(lvalue, rvalue) =>
+        val rv = rvalue.asInstanceOf[Expr]
+        lvalue match {
+          case Ident(a) => exprGen(rv, 8) ++ ListBuffer(Store(Reg(8), getVar(a).get)) ++ ListBuffer(Mov(Reg(0), Reg(8)))
+          case _ => ListBuffer()
+        }
+      case Skip() => ListBuffer()
       case Exit(expr) =>
         val exitGen = exprGen(expr, 8) ++ ListBuffer(Mov(Reg(0), Reg(8)))
         val exit = ListBuffer(Mov(Reg(0), Reg(8)), BranchLink("exit"))
@@ -90,6 +97,7 @@ object CodeGenerator {
                 val print = ListBuffer(BranchLink("print_str"))
                 nonMainFunc += ("print_str" -> printString())
                 printGen ++ print
+              case _ => ListBuffer()
             }
           case _ => ListBuffer()
         }
@@ -105,8 +113,9 @@ object CodeGenerator {
     expr match {
       case Ident(name) =>
         ListBuffer(Load(Reg(reg), getVar(name).get))
+      // mov reg, #value doesn't work for huge numbers
       case IntLiter(value) =>
-        ListBuffer(Mov(Reg(reg), Immediate(value)))
+        ListBuffer(Load(Reg(reg), ImmediateJump(Immediate(value))))
       case StrLiter(value) =>
         val label = addStrFun(value)
         ListBuffer(Load(Reg(reg), LabelJump(label)))
