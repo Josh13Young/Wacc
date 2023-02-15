@@ -4,7 +4,7 @@ import wacc.ast._
 import wacc.backend.Instruction._
 import wacc.backend.Operand._
 import wacc.backend.Print._
-import wacc.backend.Stack.{addVar, getVar}
+import wacc.backend.Stack.{addVar, addVarST, getVar, storeVar}
 import wacc.backend.Translator.translate
 import wacc.frontend.STType.{BoolST, CharST, IntST, StringST}
 import wacc.frontend.SymbolTable
@@ -36,11 +36,14 @@ object CodeGenerator {
 
     ast match {
       case Program(functions, stat) =>
+        val stackSetUp = addVarST(st)
         val statGen = stat.map(s => generate(s))
-        mainStart ++ statGen.flatten ++ mainEnd ++ nonMainFunc.values.flatten ++ ListBuffer(Directive("data")) ++ getPrintInstr ++
+        mainStart ++ stackSetUp ++ statGen.flatten ++ mainEnd ++ nonMainFunc.values.flatten ++ ListBuffer(Directive("data")) ++ getPrintInstr ++
           ListBuffer(Directive("text"))
       case AssignNew(t, ident, rvalue) =>
-        rvalueGen(rvalue) ++ addVar(ident.name, st.lookup(ident.name).get._1, Reg(8)) ++ ListBuffer(Mov(Reg(0), Reg(8)))
+        rvalueGen(rvalue) ++
+          storeVar(ident.name, Reg(8)) ++
+          ListBuffer(Mov(Reg(0), Reg(8)))
       case Assign(lvalue, rvalue) =>
         lvalue match {
           case Ident(a) => rvalueGen(rvalue) ++ ListBuffer(Store(Reg(8), getVar(a).get)) ++ ListBuffer(Mov(Reg(0), Reg(8)))
