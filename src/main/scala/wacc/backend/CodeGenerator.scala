@@ -6,6 +6,8 @@ import wacc.backend.Operand._
 import wacc.backend.Print._
 import wacc.backend.Stack.{addVar, getVar}
 import wacc.backend.Translator.translate
+import wacc.frontend.STType.{BoolST, CharST, IntST, StringST}
+import wacc.frontend.SymbolTable
 
 import scala.collection.mutable.ListBuffer
 
@@ -16,6 +18,8 @@ object CodeGenerator {
   }
 
   private var nonMainFunc: Map[String, ListBuffer[Instruction]] = Map()
+
+  var st: SymbolTable = _
 
   def generate(ast: ASTNode): ListBuffer[Instruction] = {
     val mainStart = ListBuffer(
@@ -36,7 +40,7 @@ object CodeGenerator {
           ListBuffer(Directive("text"))
       case AssignNew(t, ident, rvalue) =>
         val rv = rvalue.asInstanceOf[Expr]
-        exprGen(rv, 8) ++ addVar(ident.name, t, Reg(8)) ++ ListBuffer(Mov(Reg(0), Reg(8)))
+        exprGen(rv, 8) ++ addVar(ident.name, st.lookup(ident.name).get._1, Reg(8)) ++ ListBuffer(Mov(Reg(0), Reg(8)))
       case Exit(expr) =>
         val exitGen = exprGen(expr, 8) ++ ListBuffer(Mov(Reg(0), Reg(8)))
         val exit = ListBuffer(Mov(Reg(0), Reg(8)), BranchLink("exit"))
@@ -60,7 +64,7 @@ object CodeGenerator {
             val print = ListBuffer(BranchLink("print_bool"))
             nonMainFunc += ("print_bool" -> printBool())
             printGen ++ print
-          case Add(_, _) | Mul(_, _) | Div(_, _) | Sub(_, _) | Mod(_, _) | Ident(_) =>
+          case Add(_, _) | Mul(_, _) | Div(_, _) | Sub(_, _) | Mod(_, _) =>
             val print = ListBuffer(BranchLink("print_int"))
             nonMainFunc += ("print_int" -> printInt())
             printGen ++ print
@@ -68,6 +72,25 @@ object CodeGenerator {
             val print = ListBuffer(BranchLink("print_bool"))
             nonMainFunc += ("print_bool" -> printBool())
             printGen ++ print
+          case Ident(a) =>
+            st.lookup(a).get._1 match {
+              case IntST() =>
+                val print = ListBuffer(BranchLink("print_int"))
+                nonMainFunc += ("print_int" -> printInt())
+                printGen ++ print
+              case BoolST() =>
+                val print = ListBuffer(BranchLink("print_bool"))
+                nonMainFunc += ("print_bool" -> printBool())
+                printGen ++ print
+              case CharST() =>
+                val print = ListBuffer(BranchLink("print_char"))
+                nonMainFunc += ("print_char" -> printChar())
+                printGen ++ print
+              case StringST() =>
+                val print = ListBuffer(BranchLink("print_str"))
+                nonMainFunc += ("print_str" -> printString())
+                printGen ++ print
+            }
           case _ => ListBuffer()
         }
       case Println(expr) =>

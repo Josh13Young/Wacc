@@ -1,6 +1,7 @@
 package wacc
 
 import parsley.{Failure, Success}
+import wacc.backend.CodeGenerator
 import wacc.backend.CodeGenerator.{generate, generateString}
 import wacc.error.WaccErrorBuilder
 import wacc.frontend.{SymbolTable, parser}
@@ -17,12 +18,13 @@ object Main {
       case Success(x) =>
         val seb = new wacc.error.WaccSemanticErrorBuilder.SemanticError
         seb.program = inputList
-        if (x.check(new SymbolTable(None))(seb)) {
+        val st = new SymbolTable(None)
+        if (x.check(st)(seb)) {
           println("Program is semantically correct")
+          CodeGenerator.st = st
           val code = generateString(generate(x))
           println(code)
           val fileName = args.head.split("/").last.split("\\.").head
-          println(fileName) // generate fileName.s
           val pw = new PrintWriter(fileName + ".s")
           pw.write(code)
           pw.close()
