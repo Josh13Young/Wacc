@@ -37,4 +37,8 @@ object Instruction {
   case class OrInstr(dest: Register, operand1: Operand, operand2: Operand) extends Instruction
 
   case class Store(dest: Register, operand: Operand) extends Instruction
+
+  case class Xor(dest: Register, operand1: Operand, operand2: Operand) extends Instruction
+
+  case class RevSub(dest: Register, operand1: Operand, operand2: Operand) extends Instruction
 }

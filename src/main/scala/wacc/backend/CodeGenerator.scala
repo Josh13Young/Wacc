@@ -63,7 +63,7 @@ object CodeGenerator {
             val print = ListBuffer(BranchLink("print_str"))
             nonMainFunc += ("print_str" -> printString())
             printGen ++ print
-          case CharLiter(_) =>
+          case CharLiter(_) | Chr(_) =>
             val print = ListBuffer(BranchLink("print_char"))
             nonMainFunc += ("print_char" -> printChar())
             printGen ++ print
@@ -71,7 +71,7 @@ object CodeGenerator {
             val print = ListBuffer(BranchLink("print_bool"))
             nonMainFunc += ("print_bool" -> printBool())
             printGen ++ print
-          case Add(_, _) | Mul(_, _) | Div(_, _) | Sub(_, _) | Mod(_, _) =>
+          case Add(_, _) | Mul(_, _) | Div(_, _) | Sub(_, _) | Mod(_, _) | Neg(_) | Ord(_) =>
             val print = ListBuffer(BranchLink("print_int"))
             nonMainFunc += ("print_int" -> printInt())
             printGen ++ print
@@ -123,6 +123,16 @@ object CodeGenerator {
         ListBuffer(Mov(Reg(reg), Immediate(value.toInt)))
       case BoolLiter(value) =>
         ListBuffer(Mov(Reg(reg), Immediate(if (value) 1 else 0)))
+      case Not(expr) =>
+        val not = ListBuffer(Xor(Reg(reg), Reg(reg), Immediate(1)))
+        exprGen(expr, reg) ++ not
+      case Neg(expr) =>
+        val neg = ListBuffer(RevSub(Reg(reg), Reg(reg), Immediate(0)))
+        exprGen(expr, reg) ++ neg
+      case Ord(expr) => // do nothing
+        exprGen(expr, reg)
+      case Chr(expr) => // do nothing
+        exprGen(expr, reg)
       case Mul(expr1, expr2) =>
         val mul = ListBuffer(MulInstr(Reg(reg), Reg(reg + 1), Reg(reg), Reg(reg + 1)))
         val overflow = ListBuffer(

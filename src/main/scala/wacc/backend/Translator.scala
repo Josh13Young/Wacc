@@ -38,6 +38,10 @@ object Translator {
         s"\torr ${dest.toString}, ${operand1.toString}, ${operand2.toString}\n"
       case Store(dest, operand) =>
         s"\tstr ${dest.toString}, ${operand.toString}\n"
+      case Xor(dest, operand1, operand2) =>
+        s"\teor ${dest.toString}, ${operand1.toString}, ${operand2.toString}\n"
+      case RevSub(dest, operand1, operand2) =>
+        s"\trsb ${dest.toString}, ${operand1.toString}, ${operand2.toString}\n"
       case _ => ""
     }
   }
