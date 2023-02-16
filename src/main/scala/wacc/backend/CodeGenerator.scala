@@ -20,7 +20,7 @@ object CodeGenerator {
   private var nonMainFunc: Map[String, ListBuffer[Instruction]] = Map()
 
   var st: SymbolTable = _
-  var labelCnt = 0
+  private var labelCnt = 0
 
   def generate(ast: ASTNode): ListBuffer[Instruction] = {
     val mainStart = ListBuffer(
@@ -37,11 +37,11 @@ object CodeGenerator {
       case Program(functions, stat) =>
         val stackSetUp = addFrame(st)
         val statGen = stat.map(s => generate(s))
-        mainStart ++ stackSetUp ++ statGen.flatten ++ removeFrame(st) ++ mainEnd ++
+        mainStart ++ stackSetUp ++ statGen.flatten ++ removeFrame() ++ mainEnd ++
           nonMainFunc.values.flatten ++
           ListBuffer(Directive("data")) ++ getPrintInstr ++
           ListBuffer(Directive("text"))
-      case AssignNew(t, ident, rvalue) =>
+      case AssignNew(_, ident, rvalue) =>
         rvalueGen(rvalue) ++
           storeVar(ident.name, Reg(8)) ++
           ListBuffer(Move(Reg(0), Reg(8)))
@@ -57,10 +57,10 @@ object CodeGenerator {
         val condGen = exprGen(cond, 8)
         val falseStack = addFrame(_if.falseSymbolTable)
         val falseGen = falseStat.map(s => generate(s))
-        val falseRemove = removeFrame(_if.falseSymbolTable)
+        val falseRemove = removeFrame()
         val trueStack = addFrame(_if.trueSymbolTable)
         val trueGen = trueStat.map(s => generate(s))
-        val trueRemove = removeFrame(_if.trueSymbolTable)
+        val trueRemove = removeFrame()
         condGen ++ ListBuffer(Compare(Reg(8), Immediate(1)), Branch("eq", Label(trueLabel))) ++
           falseStack ++ falseGen.flatten ++ falseRemove ++
           ListBuffer(Branch("", Label(contLabel)), Label(trueLabel)) ++
@@ -73,7 +73,7 @@ object CodeGenerator {
         val condGen = exprGen(cond, 8)
         val whileStack = addFrame(w.symbolTable)
         val statGen = stat.map(s => generate(s))
-        val whileRemove = removeFrame(w.symbolTable)
+        val whileRemove = removeFrame()
         ListBuffer(Branch("", Label(condLabel)), Label(loopLabel)) ++
           whileStack ++ statGen.flatten ++ whileRemove ++
           ListBuffer(Label(condLabel)) ++ condGen ++
@@ -82,7 +82,7 @@ object CodeGenerator {
       case bgn@BeginStat(stat) =>
         val stackSetUp = addFrame(bgn.symbolTable)
         val statGen = stat.map(s => generate(s))
-        stackSetUp ++ statGen.flatten ++ removeFrame(bgn.symbolTable) ++ ListBuffer(Move(Reg(0), Immediate(0)))
+        stackSetUp ++ statGen.flatten ++ removeFrame() ++ ListBuffer(Move(Reg(0), Immediate(0)))
       case Skip() => ListBuffer()
       case Exit(expr) =>
         val exitGen = exprGen(expr, 8) ++ ListBuffer(Move(Reg(0), Reg(8)))
@@ -254,6 +254,7 @@ object CodeGenerator {
   }
 
   private def binOpsGen(reg: Int, expr1: Expr, expr2: Expr): ListBuffer[Instruction] = {
+    // expr1 -> reg, push reg, expr2 -> reg, reg + 1 = reg, pop reg
     val binGen = exprGen(expr1, reg) ++ ListBuffer(Push(List(Reg(reg)))) ++ exprGen(expr2, reg) ++ ListBuffer(Move(Reg(reg + 1), Reg(reg)), Pop(List(Reg(reg))))
     nonMainFunc += ("print_str" -> printString())
     binGen

@@ -12,7 +12,7 @@ object Stack {
 
   private val stack = scala.collection.mutable.Stack[StackFrame]()
 
-  class StackFrame(st: SymbolTable) {
+  class StackFrame {
     val variableMap: mutable.Map[String, Operand] = scala.collection.mutable.Map[String, Operand]()
     val variableDefined: mutable.Set[String] = scala.collection.mutable.Set[String]()
     var pointer = 0
@@ -52,12 +52,12 @@ object Stack {
   }
 
   def addFrame(st: SymbolTable): ListBuffer[Instruction] = {
-    val sf = new StackFrame(st)
+    val sf = new StackFrame
     stack.push(sf)
     ListBuffer(Push(List(FramePointer()))) ++ addVarST(st, sf) ++ ListBuffer(Move(FramePointer(), StackPointer()))
   }
 
-  def removeFrame(st: SymbolTable): ListBuffer[Instruction] = {
+  def removeFrame(): ListBuffer[Instruction] = {
     val sf = stack.pop()
     var totalOffset = sf.pointer
     val result: ListBuffer[Instruction] = ListBuffer()
