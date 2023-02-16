@@ -55,12 +55,16 @@ object CodeGenerator {
         val contLabel = ".L" + (labelCnt + 1)
         labelCnt += 2
         val condGen = exprGen(cond, 8)
-        val trueGen = trueStat.map(s => generate(s))
+        val falseStack = addFrame(_if.falseSymbolTable)
         val falseGen = falseStat.map(s => generate(s))
+        val falseRemove = removeFrame(_if.falseSymbolTable)
+        val trueStack = addFrame(_if.trueSymbolTable)
+        val trueGen = trueStat.map(s => generate(s))
+        val trueRemove = removeFrame(_if.trueSymbolTable)
         condGen ++ ListBuffer(Compare(Reg(8), Immediate(1)), Branch("eq", Label(trueLabel))) ++
-          addFrame(_if.falseSymbolTable) ++ falseGen.flatten ++ removeFrame(_if.falseSymbolTable) ++
+          falseStack ++ falseGen.flatten ++ falseRemove ++
           ListBuffer(Branch("", Label(contLabel)), Label(trueLabel)) ++
-          addFrame(_if.falseSymbolTable) ++ trueGen.flatten ++ removeFrame(_if.trueSymbolTable) ++
+          trueStack ++ trueGen.flatten ++ trueRemove ++
           ListBuffer(Label(contLabel)) ++ ListBuffer(Move(Reg(0), Immediate(0)))
       case While(cond, stat) =>
         val condLabel = ".L" + labelCnt

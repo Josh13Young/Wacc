@@ -75,7 +75,6 @@ object Stack {
     var fpOffset = 0
     while (stackClone.nonEmpty) {
       val sf = stackClone.pop()
-      println(sf)
       if (sf.variableDefined.contains(name)) {
         sf.variableMap(name) match {
           case RegOffset(fp, Immediate(offset)) => return Some(RegOffset(fp, Immediate(offset + fpOffset)))
