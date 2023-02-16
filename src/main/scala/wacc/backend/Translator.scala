@@ -12,8 +12,10 @@ object Translator {
         s"\tpush {${regList.map(reg => reg.toString).mkString(", ")}}\n"
       case Pop(regList) =>
         s"\tpop {${regList.map(reg => reg.toString).mkString(", ")}}\n"
-      case Mov(dest, src) =>
+      case Move(dest, src) =>
         s"\tmov ${dest.toString}, ${src.toString}\n"
+      case MoveCond(cond, dest, operand) =>
+        s"\tmov$cond ${dest.toString}, ${operand.toString}\n"
       case BranchLink(label) =>
         s"\tbl $label\n"
       case BranchLinkWithCond(cond, label) =>

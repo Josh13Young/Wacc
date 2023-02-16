@@ -30,7 +30,7 @@ object CodeGenerator {
     )
 
     val mainEnd = ListBuffer(
-      Mov(Reg(0), Immediate(0)),
+      Move(Reg(0), Immediate(0)),
       Pop(List(ProgramCounter())))
 
     ast match {
@@ -44,10 +44,10 @@ object CodeGenerator {
       case AssignNew(t, ident, rvalue) =>
         rvalueGen(rvalue) ++
           storeVar(ident.name, Reg(8)) ++
-          ListBuffer(Mov(Reg(0), Reg(8)))
+          ListBuffer(Move(Reg(0), Reg(8)))
       case Assign(lvalue, rvalue) =>
         lvalue match {
-          case Ident(a) => rvalueGen(rvalue) ++ ListBuffer(Store(Reg(8), getVar(a).get)) ++ ListBuffer(Mov(Reg(0), Reg(8)))
+          case Ident(a) => rvalueGen(rvalue) ++ ListBuffer(Store(Reg(8), getVar(a).get)) ++ ListBuffer(Move(Reg(0), Reg(8)))
           case _ => ListBuffer()
         }
       case _if@If(cond, trueStat, falseStat) =>
@@ -61,7 +61,7 @@ object CodeGenerator {
           addFrame(_if.falseSymbolTable) ++ falseGen.flatten ++ removeFrame(_if.falseSymbolTable) ++
           ListBuffer(Branch("", Label(contLabel)), Label(trueLabel)) ++
           addFrame(_if.falseSymbolTable) ++ trueGen.flatten ++ removeFrame(_if.trueSymbolTable) ++
-          ListBuffer(Label(contLabel)) ++ ListBuffer(Mov(Reg(0), Immediate(0)))
+          ListBuffer(Label(contLabel)) ++ ListBuffer(Move(Reg(0), Immediate(0)))
       case While(cond, stat) =>
         val condLabel = ".L" + labelCnt
         val loopLabel = ".L" + (labelCnt + 1)
@@ -74,18 +74,18 @@ object CodeGenerator {
         ) ++ statGen.flatten ++ ListBuffer(Label(condLabel)) ++ condGen ++ ListBuffer(
           Compare(Reg(8), Immediate(1)),
           Branch("eq", Label(loopLabel))
-        ) ++ ListBuffer(Mov(Reg(0), Immediate(0)))
+        ) ++ ListBuffer(Move(Reg(0), Immediate(0)))
       case bgn@BeginStat(stat) =>
         val stackSetUp = addFrame(bgn.symbolTable)
         val statGen = stat.map(s => generate(s))
-        stackSetUp ++ statGen.flatten ++ removeFrame(bgn.symbolTable) ++ ListBuffer(Mov(Reg(0), Immediate(0)))
+        stackSetUp ++ statGen.flatten ++ removeFrame(bgn.symbolTable) ++ ListBuffer(Move(Reg(0), Immediate(0)))
       case Skip() => ListBuffer()
       case Exit(expr) =>
-        val exitGen = exprGen(expr, 8) ++ ListBuffer(Mov(Reg(0), Reg(8)))
-        val exit = ListBuffer(Mov(Reg(0), Reg(8)), BranchLink("exit"))
+        val exitGen = exprGen(expr, 8) ++ ListBuffer(Move(Reg(0), Reg(8)))
+        val exit = ListBuffer(Move(Reg(0), Reg(8)), BranchLink("exit"))
         exitGen ++ exit
       case Print(expr) =>
-        val printGen = exprGen(expr, 8) ++ ListBuffer(Mov(Reg(0), Reg(8)))
+        val printGen = exprGen(expr, 8) ++ ListBuffer(Move(Reg(0), Reg(8)))
         expr match {
           case IntLiter(_) =>
             val print = ListBuffer(BranchLink("print_int"))
@@ -106,6 +106,10 @@ object CodeGenerator {
           case Add(_, _) | Mul(_, _) | Div(_, _) | Sub(_, _) | Mod(_, _) | Neg(_) | Ord(_) =>
             val print = ListBuffer(BranchLink("print_int"))
             nonMainFunc += ("print_int" -> printInt())
+            printGen ++ print
+          case GT(_, _) | GTE(_, _) | LT(_, _) | LTE(_, _) =>
+            val print = ListBuffer(BranchLink("print_bool"))
+            nonMainFunc += ("print_bool" -> printBool())
             printGen ++ print
           case And(_, _) | Or(_, _) | Not(_) =>
             val print = ListBuffer(BranchLink("print_bool"))
@@ -164,9 +168,9 @@ object CodeGenerator {
         val label = addStrFun(value)
         ListBuffer(Load(Reg(reg), LabelJump(label)))
       case CharLiter(value) =>
-        ListBuffer(Mov(Reg(reg), Immediate(value.toInt)))
+        ListBuffer(Move(Reg(reg), Immediate(value.toInt)))
       case BoolLiter(value) =>
-        ListBuffer(Mov(Reg(reg), Immediate(if (value) 1 else 0)))
+        ListBuffer(Move(Reg(reg), Immediate(if (value) 1 else 0)))
       case Not(expr) =>
         val not = ListBuffer(Xor(Reg(reg), Reg(reg), Immediate(1)))
         exprGen(expr, reg) ++ not
@@ -187,23 +191,23 @@ object CodeGenerator {
         binOpsGen(reg, expr1, expr2) ++ mul ++ overflow
       case Div(expr1, expr2) =>
         val div = ListBuffer(
-          Mov(Reg(0), Reg(reg)),
-          Mov(Reg(1), Reg(reg + 1)),
+          Move(Reg(0), Reg(reg)),
+          Move(Reg(1), Reg(reg + 1)),
           Compare(Reg(1), Immediate(0)),
           BranchLinkWithCond("eq", "divide_by_zero_error"),
           BranchLink("__aeabi_idivmod"),
-          Mov(Reg(reg), Reg(0))
+          Move(Reg(reg), Reg(0))
         )
         nonMainFunc += ("divide_by_zero_error" -> divideByZeroError())
         binOpsGen(reg, expr1, expr2) ++ div
       case Mod(expr1, expr2) =>
         val mod = ListBuffer(
-          Mov(Reg(0), Reg(reg)),
-          Mov(Reg(1), Reg(reg + 1)),
+          Move(Reg(0), Reg(reg)),
+          Move(Reg(1), Reg(reg + 1)),
           Compare(Reg(1), Immediate(0)),
           BranchLinkWithCond("eq", "divide_by_zero_error"),
           BranchLink("__aeabi_idivmod"),
-          Mov(Reg(reg), Reg(1))
+          Move(Reg(reg), Reg(1))
         )
         nonMainFunc += ("divide_by_zero_error" -> divideByZeroError())
         binOpsGen(reg, expr1, expr2) ++ mod
@@ -217,6 +221,18 @@ object CodeGenerator {
         val overflow = ListBuffer(BranchLinkWithCond("vs", "overflow_error"))
         nonMainFunc += ("overflow_error" -> overflowError())
         binOpsGen(reg, expr1, expr2) ++ sub ++ overflow
+      case GT(expr1, expr2) =>
+        val gt = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("gt", Reg(reg), Immediate(1)), MoveCond("le", Reg(reg), Immediate(0)))
+        binOpsGen(reg, expr1, expr2) ++ gt
+      case GTE(expr1, expr2) =>
+        val gte = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("ge", Reg(reg), Immediate(1)), MoveCond("lt", Reg(reg), Immediate(0)))
+        binOpsGen(reg, expr1, expr2) ++ gte
+      case LT(expr1, expr2) =>
+        val lt = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("lt", Reg(reg), Immediate(1)), MoveCond("ge", Reg(reg), Immediate(0)))
+        binOpsGen(reg, expr1, expr2) ++ lt
+      case LTE(expr1, expr2) =>
+        val lte = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("le", Reg(reg), Immediate(1)), MoveCond("gt", Reg(reg), Immediate(0)))
+        binOpsGen(reg, expr1, expr2) ++ lte
       case And(expr1, expr2) =>
         val and = ListBuffer(AndInstr(Reg(reg), Reg(reg), Reg(reg + 1)))
         binOpsGen(reg, expr1, expr2) ++ and
@@ -228,7 +244,7 @@ object CodeGenerator {
   }
 
   private def binOpsGen(reg: Int, expr1: Expr, expr2: Expr): ListBuffer[Instruction] = {
-    val binGen = exprGen(expr1, reg) ++ ListBuffer(Push(List(Reg(reg)))) ++ exprGen(expr2, reg) ++ ListBuffer(Mov(Reg(reg + 1), Reg(reg)), Pop(List(Reg(reg))))
+    val binGen = exprGen(expr1, reg) ++ ListBuffer(Push(List(Reg(reg)))) ++ exprGen(expr2, reg) ++ ListBuffer(Move(Reg(reg + 1), Reg(reg)), Pop(List(Reg(reg))))
     nonMainFunc += ("print_str" -> printString())
     binGen
   }

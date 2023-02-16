@@ -1,6 +1,6 @@
 package wacc.backend
 
-import wacc.backend.Instruction.{AddInstr, Instruction, Mov, Pop, Push, Store, SubInstr}
+import wacc.backend.Instruction.{AddInstr, Instruction, Move, Pop, Push, Store, SubInstr}
 import wacc.backend.Operand.{FramePointer, Immediate, Operand, Reg, RegOffset, StackPointer}
 import wacc.frontend.STType._
 import wacc.frontend.SymbolTable
@@ -54,7 +54,7 @@ object Stack {
   def addFrame(st: SymbolTable): ListBuffer[Instruction] = {
     val sf = new StackFrame(st)
     stack.push(sf)
-    ListBuffer(Push(List(FramePointer()))) ++ addVarST(st, sf) ++ ListBuffer(Mov(FramePointer(), StackPointer()))
+    ListBuffer(Push(List(FramePointer()))) ++ addVarST(st, sf) ++ ListBuffer(Move(FramePointer(), StackPointer()))
   }
 
   def removeFrame(st: SymbolTable): ListBuffer[Instruction] = {

@@ -12,10 +12,10 @@ object Print {
     ListBuffer(
       Label("print_int"),
       Push(List(LinkRegister())),
-      Mov(Reg(1), Reg(0)),
+      Move(Reg(1), Reg(0)),
       Load(Reg(0), LabelJump(addStrFun("%d"))),
       BranchLink("printf"),
-      Mov(Reg(0), Immediate(0)),
+      Move(Reg(0), Immediate(0)),
       BranchLink("fflush"),
       Pop(List(ProgramCounter()))
     )
@@ -25,11 +25,11 @@ object Print {
     ListBuffer(
       Label("print_str"),
       Push(List(LinkRegister())),
-      Mov(Reg(2), Reg(0)),
+      Move(Reg(2), Reg(0)),
       Load(Reg(1), RegOffset(Reg(0), Immediate(-4))),
       Load(Reg(0), LabelJump(addStrFun("%.*s"))),
       BranchLink("printf"),
-      Mov(Reg(0), Immediate(0)),
+      Move(Reg(0), Immediate(0)),
       BranchLink("fflush"),
       Pop(List(ProgramCounter()))
     )
@@ -39,10 +39,10 @@ object Print {
     ListBuffer(
       Label("print_char"),
       Push(List(LinkRegister())),
-      Mov(Reg(1), Reg(0)),
+      Move(Reg(1), Reg(0)),
       Load(Reg(0), LabelJump(addStrFun("%c"))),
       BranchLink("printf"),
-      Mov(Reg(0), Immediate(0)),
+      Move(Reg(0), Immediate(0)),
       BranchLink("fflush"),
       Pop(List(ProgramCounter()))
     )
@@ -53,7 +53,7 @@ object Print {
       Label("overflow_error"),
       Load(Reg(0), LabelJump(addStrFun("fatal error: integer overflow"))),
       BranchLink("print_str"),
-      Mov(Reg(0), Immediate(255)),
+      Move(Reg(0), Immediate(255)),
       BranchLink("exit")
     )
   }
@@ -63,7 +63,7 @@ object Print {
       Label("divide_by_zero_error"),
       Load(Reg(0), LabelJump(addStrFun("fatal error: divide by zero"))),
       BranchLink("print_str"),
-      Mov(Reg(0), Immediate(255)),
+      Move(Reg(0), Immediate(255)),
       BranchLink("exit")
     )
   }
@@ -82,7 +82,7 @@ object Print {
       Load(Reg(1), RegOffset(Reg(2), Immediate(-4))),
       Load(Reg(0), LabelJump(addStrFun("%.*s"))),
       BranchLink("printf"),
-      Mov(Reg(0), Immediate(0)),
+      Move(Reg(0), Immediate(0)),
       BranchLink("fflush"),
       Pop(List(ProgramCounter()))
     )
@@ -94,7 +94,7 @@ object Print {
       Push(List(LinkRegister())),
       Load(Reg(0), LabelJump(addStrFun(""))),
       BranchLink("puts"),
-      Mov(Reg(0), Immediate(0)),
+      Move(Reg(0), Immediate(0)),
       BranchLink("fflush"),
       Pop(List(ProgramCounter()))
     )
