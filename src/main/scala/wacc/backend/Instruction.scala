@@ -10,7 +10,9 @@ object Instruction {
 
   case class Pop(regList: List[Register]) extends Instruction
 
-  case class Mov(dest: Register, operand: Operand) extends Instruction
+  case class Move(dest: Register, operand: Operand) extends Instruction
+
+  case class MoveCond(cond: String, dest: Register, operand: Operand) extends Instruction
 
   case class Label(name: String) extends Instruction // probably not belong here
 

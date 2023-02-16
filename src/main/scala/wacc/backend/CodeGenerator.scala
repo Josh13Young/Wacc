@@ -4,7 +4,7 @@ import wacc.ast._
 import wacc.backend.Instruction._
 import wacc.backend.Operand._
 import wacc.backend.Print._
-import wacc.backend.Stack.{addVar, getVar}
+import wacc.backend.Stack.{addFrame, getVar, removeFrame, storeVar}
 import wacc.backend.Translator.translate
 import wacc.frontend.STType.{BoolST, CharST, IntST, StringST}
 import wacc.frontend.SymbolTable
@@ -20,40 +20,76 @@ object CodeGenerator {
   private var nonMainFunc: Map[String, ListBuffer[Instruction]] = Map()
 
   var st: SymbolTable = _
+  var labelCnt = 0
 
   def generate(ast: ASTNode): ListBuffer[Instruction] = {
     val mainStart = ListBuffer(
       Directive("global main"),
       Label("main"),
-      Push(List(FramePointer(), LinkRegister())),
-      Mov(FramePointer(), StackPointer()))
+      Push(List(LinkRegister()))
+    )
 
     val mainEnd = ListBuffer(
-      Mov(Reg(0), Immediate(0)),
-      Mov(StackPointer(), FramePointer()),
-      Pop(List(FramePointer(), ProgramCounter())))
+      Move(Reg(0), Immediate(0)),
+      Pop(List(ProgramCounter())))
 
     ast match {
       case Program(functions, stat) =>
+        val stackSetUp = addFrame(st)
         val statGen = stat.map(s => generate(s))
-        mainStart ++ statGen.flatten ++ mainEnd ++ nonMainFunc.values.flatten ++ ListBuffer(Directive("data")) ++ getPrintInstr ++
+        mainStart ++ stackSetUp ++ statGen.flatten ++ removeFrame(st) ++ mainEnd ++
+          nonMainFunc.values.flatten ++
+          ListBuffer(Directive("data")) ++ getPrintInstr ++
           ListBuffer(Directive("text"))
       case AssignNew(t, ident, rvalue) =>
-        val rv = rvalue.asInstanceOf[Expr]
-        exprGen(rv, 8) ++ addVar(ident.name, st.lookup(ident.name).get._1, Reg(8)) ++ ListBuffer(Mov(Reg(0), Reg(8)))
+        rvalueGen(rvalue) ++
+          storeVar(ident.name, Reg(8)) ++
+          ListBuffer(Move(Reg(0), Reg(8)))
       case Assign(lvalue, rvalue) =>
-        val rv = rvalue.asInstanceOf[Expr]
         lvalue match {
-          case Ident(a) => exprGen(rv, 8) ++ ListBuffer(Store(Reg(8), getVar(a).get)) ++ ListBuffer(Mov(Reg(0), Reg(8)))
+          case Ident(a) => rvalueGen(rvalue) ++ ListBuffer(Store(Reg(8), getVar(a).get)) ++ ListBuffer(Move(Reg(0), Reg(8)))
           case _ => ListBuffer()
         }
+      case _if@If(cond, trueStat, falseStat) =>
+        val trueLabel = ".L" + labelCnt
+        val contLabel = ".L" + (labelCnt + 1)
+        labelCnt += 2
+        val condGen = exprGen(cond, 8)
+        val falseStack = addFrame(_if.falseSymbolTable)
+        val falseGen = falseStat.map(s => generate(s))
+        val falseRemove = removeFrame(_if.falseSymbolTable)
+        val trueStack = addFrame(_if.trueSymbolTable)
+        val trueGen = trueStat.map(s => generate(s))
+        val trueRemove = removeFrame(_if.trueSymbolTable)
+        condGen ++ ListBuffer(Compare(Reg(8), Immediate(1)), Branch("eq", Label(trueLabel))) ++
+          falseStack ++ falseGen.flatten ++ falseRemove ++
+          ListBuffer(Branch("", Label(contLabel)), Label(trueLabel)) ++
+          trueStack ++ trueGen.flatten ++ trueRemove ++
+          ListBuffer(Label(contLabel)) ++ ListBuffer(Move(Reg(0), Immediate(0)))
+      case w@While(cond, stat) =>
+        val condLabel = ".L" + labelCnt
+        val loopLabel = ".L" + (labelCnt + 1)
+        labelCnt += 2
+        val condGen = exprGen(cond, 8)
+        val whileStack = addFrame(w.symbolTable)
+        val statGen = stat.map(s => generate(s))
+        val whileRemove = removeFrame(w.symbolTable)
+        ListBuffer(Branch("", Label(condLabel)), Label(loopLabel)) ++
+          whileStack ++ statGen.flatten ++ whileRemove ++
+          ListBuffer(Label(condLabel)) ++ condGen ++
+          ListBuffer(Compare(Reg(8), Immediate(1)), Branch("eq", Label(loopLabel))) ++
+          ListBuffer(Move(Reg(0), Immediate(0)))
+      case bgn@BeginStat(stat) =>
+        val stackSetUp = addFrame(bgn.symbolTable)
+        val statGen = stat.map(s => generate(s))
+        stackSetUp ++ statGen.flatten ++ removeFrame(bgn.symbolTable) ++ ListBuffer(Move(Reg(0), Immediate(0)))
       case Skip() => ListBuffer()
       case Exit(expr) =>
-        val exitGen = exprGen(expr, 8) ++ ListBuffer(Mov(Reg(0), Reg(8)))
-        val exit = ListBuffer(Mov(Reg(0), Reg(8)), BranchLink("exit"))
+        val exitGen = exprGen(expr, 8) ++ ListBuffer(Move(Reg(0), Reg(8)))
+        val exit = ListBuffer(Move(Reg(0), Reg(8)), BranchLink("exit"))
         exitGen ++ exit
       case Print(expr) =>
-        val printGen = exprGen(expr, 8) ++ ListBuffer(Mov(Reg(0), Reg(8)))
+        val printGen = exprGen(expr, 8) ++ ListBuffer(Move(Reg(0), Reg(8)))
         expr match {
           case IntLiter(_) =>
             val print = ListBuffer(BranchLink("print_int"))
@@ -75,11 +111,16 @@ object CodeGenerator {
             val print = ListBuffer(BranchLink("print_int"))
             nonMainFunc += ("print_int" -> printInt())
             printGen ++ print
+          case GT(_, _) | GTE(_, _) | LT(_, _) | LTE(_, _) | EQ(_, _) | NEQ(_, _) =>
+            val print = ListBuffer(BranchLink("print_bool"))
+            nonMainFunc += ("print_bool" -> printBool())
+            printGen ++ print
           case And(_, _) | Or(_, _) | Not(_) =>
             val print = ListBuffer(BranchLink("print_bool"))
             nonMainFunc += ("print_bool" -> printBool())
             printGen ++ print
           case Ident(a) =>
+            // to fix: scope redefine use sub symbol table, probs move this to another file
             st.lookup(a).get._1 match {
               case IntST() =>
                 val print = ListBuffer(BranchLink("print_int"))
@@ -109,6 +150,17 @@ object CodeGenerator {
     }
   }
 
+  private def rvalueGen(rv: Rvalue): ListBuffer[Instruction] = {
+    rv match {
+      case expr: Expr => exprGen(expr, 8)
+      case ArrayLiter(_) => ListBuffer()
+      case NewPair(_, _) => ListBuffer()
+      case FstElem(_) => ListBuffer()
+      case SndElem(_) => ListBuffer()
+      case Call(_, _) => ListBuffer()
+    }
+  }
+
   private def exprGen(expr: Expr, reg: Int): ListBuffer[Instruction] = {
     expr match {
       case Ident(name) =>
@@ -120,9 +172,9 @@ object CodeGenerator {
         val label = addStrFun(value)
         ListBuffer(Load(Reg(reg), LabelJump(label)))
       case CharLiter(value) =>
-        ListBuffer(Mov(Reg(reg), Immediate(value.toInt)))
+        ListBuffer(Move(Reg(reg), Immediate(value.toInt)))
       case BoolLiter(value) =>
-        ListBuffer(Mov(Reg(reg), Immediate(if (value) 1 else 0)))
+        ListBuffer(Move(Reg(reg), Immediate(if (value) 1 else 0)))
       case Not(expr) =>
         val not = ListBuffer(Xor(Reg(reg), Reg(reg), Immediate(1)))
         exprGen(expr, reg) ++ not
@@ -140,51 +192,69 @@ object CodeGenerator {
           BranchLinkWithCond("ne", "overflow_error")
         )
         nonMainFunc += ("overflow_error" -> overflowError())
-        generateBinOps(reg, expr1, expr2) ++ mul ++ overflow
+        binOpsGen(reg, expr1, expr2) ++ mul ++ overflow
       case Div(expr1, expr2) =>
         val div = ListBuffer(
-          Mov(Reg(0), Reg(reg)),
-          Mov(Reg(1), Reg(reg + 1)),
+          Move(Reg(0), Reg(reg)),
+          Move(Reg(1), Reg(reg + 1)),
           Compare(Reg(1), Immediate(0)),
           BranchLinkWithCond("eq", "divide_by_zero_error"),
           BranchLink("__aeabi_idivmod"),
-          Mov(Reg(reg), Reg(0))
+          Move(Reg(reg), Reg(0))
         )
         nonMainFunc += ("divide_by_zero_error" -> divideByZeroError())
-        generateBinOps(reg, expr1, expr2) ++ div
+        binOpsGen(reg, expr1, expr2) ++ div
       case Mod(expr1, expr2) =>
         val mod = ListBuffer(
-          Mov(Reg(0), Reg(reg)),
-          Mov(Reg(1), Reg(reg + 1)),
+          Move(Reg(0), Reg(reg)),
+          Move(Reg(1), Reg(reg + 1)),
           Compare(Reg(1), Immediate(0)),
           BranchLinkWithCond("eq", "divide_by_zero_error"),
           BranchLink("__aeabi_idivmod"),
-          Mov(Reg(reg), Reg(1))
+          Move(Reg(reg), Reg(1))
         )
         nonMainFunc += ("divide_by_zero_error" -> divideByZeroError())
-        generateBinOps(reg, expr1, expr2) ++ mod
+        binOpsGen(reg, expr1, expr2) ++ mod
       case Add(expr1, expr2) =>
         val add = ListBuffer(AddInstr(Reg(reg), Reg(reg), Reg(reg + 1)))
         val overflow = ListBuffer(BranchLinkWithCond("vs", "overflow_error"))
         nonMainFunc += ("overflow_error" -> overflowError())
-        generateBinOps(reg, expr1, expr2) ++ add ++ overflow
+        binOpsGen(reg, expr1, expr2) ++ add ++ overflow
       case Sub(expr1, expr2) =>
         val sub = ListBuffer(SubInstr(Reg(reg), Reg(reg), Reg(reg + 1)))
         val overflow = ListBuffer(BranchLinkWithCond("vs", "overflow_error"))
         nonMainFunc += ("overflow_error" -> overflowError())
-        generateBinOps(reg, expr1, expr2) ++ sub ++ overflow
+        binOpsGen(reg, expr1, expr2) ++ sub ++ overflow
+      case GT(expr1, expr2) =>
+        val gt = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("gt", Reg(reg), Immediate(1)), MoveCond("le", Reg(reg), Immediate(0)))
+        binOpsGen(reg, expr1, expr2) ++ gt
+      case GTE(expr1, expr2) =>
+        val gte = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("ge", Reg(reg), Immediate(1)), MoveCond("lt", Reg(reg), Immediate(0)))
+        binOpsGen(reg, expr1, expr2) ++ gte
+      case LT(expr1, expr2) =>
+        val lt = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("lt", Reg(reg), Immediate(1)), MoveCond("ge", Reg(reg), Immediate(0)))
+        binOpsGen(reg, expr1, expr2) ++ lt
+      case LTE(expr1, expr2) =>
+        val lte = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("le", Reg(reg), Immediate(1)), MoveCond("gt", Reg(reg), Immediate(0)))
+        binOpsGen(reg, expr1, expr2) ++ lte
+      case EQ(expr1, expr2) =>
+        val eq = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("eq", Reg(reg), Immediate(1)), MoveCond("ne", Reg(reg), Immediate(0)))
+        binOpsGen(reg, expr1, expr2) ++ eq
+      case NEQ(expr1, expr2) =>
+        val neq = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("ne", Reg(reg), Immediate(1)), MoveCond("eq", Reg(reg), Immediate(0)))
+        binOpsGen(reg, expr1, expr2) ++ neq
       case And(expr1, expr2) =>
         val and = ListBuffer(AndInstr(Reg(reg), Reg(reg), Reg(reg + 1)))
-        generateBinOps(reg, expr1, expr2) ++ and
+        binOpsGen(reg, expr1, expr2) ++ and
       case Or(expr1, expr2) =>
         val or = ListBuffer(OrInstr(Reg(reg), Reg(reg), Reg(reg + 1)))
-        generateBinOps(reg, expr1, expr2) ++ or
+        binOpsGen(reg, expr1, expr2) ++ or
       case _ => ListBuffer()
     }
   }
 
-  private def generateBinOps(reg: Int, expr1: Expr, expr2: Expr): ListBuffer[Instruction] = {
-    val binGen = exprGen(expr1, reg) ++ ListBuffer(Push(List(Reg(reg)))) ++ exprGen(expr2, reg) ++ ListBuffer(Mov(Reg(reg + 1), Reg(reg)), Pop(List(Reg(reg))))
+  private def binOpsGen(reg: Int, expr1: Expr, expr2: Expr): ListBuffer[Instruction] = {
+    val binGen = exprGen(expr1, reg) ++ ListBuffer(Push(List(Reg(reg)))) ++ exprGen(expr2, reg) ++ ListBuffer(Move(Reg(reg + 1), Reg(reg)), Pop(List(Reg(reg))))
     nonMainFunc += ("print_str" -> printString())
     binGen
   }

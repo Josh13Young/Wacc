@@ -23,7 +23,6 @@ object Main {
           println("Program is semantically correct")
           CodeGenerator.st = st
           val code = generateString(generate(x))
-          println(code)
           val fileName = args.head.split("/").last.split("\\.").head
           val pw = new PrintWriter(fileName + ".s")
           pw.write(code)
