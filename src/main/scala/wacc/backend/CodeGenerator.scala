@@ -66,19 +66,19 @@ object CodeGenerator {
           ListBuffer(Branch("", Label(contLabel)), Label(trueLabel)) ++
           trueStack ++ trueGen.flatten ++ trueRemove ++
           ListBuffer(Label(contLabel)) ++ ListBuffer(Move(Reg(0), Immediate(0)))
-      case While(cond, stat) =>
+      case w@While(cond, stat) =>
         val condLabel = ".L" + labelCnt
         val loopLabel = ".L" + (labelCnt + 1)
         labelCnt += 2
         val condGen = exprGen(cond, 8)
+        val whileStack = addFrame(w.symbolTable)
         val statGen = stat.map(s => generate(s))
-        ListBuffer(
-          Branch("", Label(condLabel)),
-          Label(loopLabel)
-        ) ++ statGen.flatten ++ ListBuffer(Label(condLabel)) ++ condGen ++ ListBuffer(
-          Compare(Reg(8), Immediate(1)),
-          Branch("eq", Label(loopLabel))
-        ) ++ ListBuffer(Move(Reg(0), Immediate(0)))
+        val whileRemove = removeFrame(w.symbolTable)
+        ListBuffer(Branch("", Label(condLabel)), Label(loopLabel)) ++
+          whileStack ++ statGen.flatten ++ whileRemove ++
+          ListBuffer(Label(condLabel)) ++ condGen ++
+          ListBuffer(Compare(Reg(8), Immediate(1)), Branch("eq", Label(loopLabel))) ++
+          ListBuffer(Move(Reg(0), Immediate(0)))
       case bgn@BeginStat(stat) =>
         val stackSetUp = addFrame(bgn.symbolTable)
         val statGen = stat.map(s => generate(s))

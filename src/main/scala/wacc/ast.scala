@@ -368,6 +368,7 @@ object ast {
   object If extends ParserBridgePos3[Expr, List[Stat], List[Stat], If]
 
   case class While(cond: Expr, stat: List[Stat])(val pos: (Int, Int)) extends Stat {
+    var symbolTable = new SymbolTable(None)
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       if (!cond.check(st)) {
         return false
@@ -382,6 +383,7 @@ object ast {
       if (!stat.forall(_.check(whileST))) {
         return false
       }
+      symbolTable = whileST
       true
     }
   }
