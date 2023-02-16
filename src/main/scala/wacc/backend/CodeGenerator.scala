@@ -4,7 +4,7 @@ import wacc.ast._
 import wacc.backend.Instruction._
 import wacc.backend.Operand._
 import wacc.backend.Print._
-import wacc.backend.Stack.{addVar, addVarST, getVar, storeVar}
+import wacc.backend.Stack.{addFrame, getVar, removeFrame, storeVar}
 import wacc.backend.Translator.translate
 import wacc.frontend.STType.{BoolST, CharST, IntST, StringST}
 import wacc.frontend.SymbolTable
@@ -26,19 +26,20 @@ object CodeGenerator {
     val mainStart = ListBuffer(
       Directive("global main"),
       Label("main"),
-      Push(List(FramePointer(), LinkRegister())),
-      Mov(FramePointer(), StackPointer()))
+      Push(List(LinkRegister()))
+    )
 
     val mainEnd = ListBuffer(
       Mov(Reg(0), Immediate(0)),
-      Mov(StackPointer(), FramePointer()),
-      Pop(List(FramePointer(), ProgramCounter())))
+      Pop(List(ProgramCounter())))
 
     ast match {
       case Program(functions, stat) =>
-        val stackSetUp = addVarST(st)
+        val stackSetUp = addFrame(st)
         val statGen = stat.map(s => generate(s))
-        mainStart ++ stackSetUp ++ statGen.flatten ++ mainEnd ++ nonMainFunc.values.flatten ++ ListBuffer(Directive("data")) ++ getPrintInstr ++
+        mainStart ++ stackSetUp ++ statGen.flatten ++ removeFrame(st) ++ mainEnd ++
+          nonMainFunc.values.flatten ++
+          ListBuffer(Directive("data")) ++ getPrintInstr ++
           ListBuffer(Directive("text"))
       case AssignNew(t, ident, rvalue) =>
         rvalueGen(rvalue) ++
