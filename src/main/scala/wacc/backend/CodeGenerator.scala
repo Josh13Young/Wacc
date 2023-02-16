@@ -111,7 +111,7 @@ object CodeGenerator {
             val print = ListBuffer(BranchLink("print_int"))
             nonMainFunc += ("print_int" -> printInt())
             printGen ++ print
-          case GT(_, _) | GTE(_, _) | LT(_, _) | LTE(_, _) =>
+          case GT(_, _) | GTE(_, _) | LT(_, _) | LTE(_, _) | EQ(_, _) | NEQ(_, _) =>
             val print = ListBuffer(BranchLink("print_bool"))
             nonMainFunc += ("print_bool" -> printBool())
             printGen ++ print
@@ -237,6 +237,12 @@ object CodeGenerator {
       case LTE(expr1, expr2) =>
         val lte = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("le", Reg(reg), Immediate(1)), MoveCond("gt", Reg(reg), Immediate(0)))
         binOpsGen(reg, expr1, expr2) ++ lte
+      case EQ(expr1, expr2) =>
+        val eq = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("eq", Reg(reg), Immediate(1)), MoveCond("ne", Reg(reg), Immediate(0)))
+        binOpsGen(reg, expr1, expr2) ++ eq
+      case NEQ(expr1, expr2) =>
+        val neq = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("ne", Reg(reg), Immediate(1)), MoveCond("eq", Reg(reg), Immediate(0)))
+        binOpsGen(reg, expr1, expr2) ++ neq
       case And(expr1, expr2) =>
         val and = ListBuffer(AndInstr(Reg(reg), Reg(reg), Reg(reg + 1)))
         binOpsGen(reg, expr1, expr2) ++ and

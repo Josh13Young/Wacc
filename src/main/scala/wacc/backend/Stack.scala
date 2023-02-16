@@ -18,7 +18,7 @@ object Stack {
     var pointer = 0
   }
 
-  def addVar(name: String, t: TypeST, sf: StackFrame): Unit = {
+  private def addVar(name: String, t: TypeST, sf: StackFrame): Unit = {
     var offset = 0
     t match {
       case IntST() | BoolST() | CharST() | StringST() => offset = 4
