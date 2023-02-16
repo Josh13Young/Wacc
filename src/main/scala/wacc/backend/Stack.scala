@@ -14,6 +14,7 @@ object Stack {
 
   class StackFrame(st: SymbolTable) {
     val variableMap: mutable.Map[String, Operand] = scala.collection.mutable.Map[String, Operand]()
+    val variableDefined: mutable.Set[String] = scala.collection.mutable.Set[String]()
     var pointer = 0
   }
 
@@ -30,10 +31,11 @@ object Stack {
 
   def storeVar(name: String, reg: Reg): ListBuffer[Instruction] = {
     val sf = stack.top
+    sf.variableDefined += name
     ListBuffer(Store(reg, sf.variableMap(name)))
   }
 
-  def addVarST(st: SymbolTable, sf: StackFrame): ListBuffer[Instruction] = {
+  private def addVarST(st: SymbolTable, sf: StackFrame): ListBuffer[Instruction] = {
     st.getDictNameType.foreach {
       case (name, t) =>
         addVar(name, t, sf)
@@ -69,7 +71,19 @@ object Stack {
   }
 
   def getVar(name: String): Option[Operand] = {
-    val sf = stack.top
-    sf.variableMap.get(name)
+    val stackClone = stack.clone()
+    var fpOffset = 0
+    while (stackClone.nonEmpty) {
+      val sf = stackClone.pop()
+      println(sf)
+      if (sf.variableDefined.contains(name)) {
+        sf.variableMap(name) match {
+          case RegOffset(fp, Immediate(offset)) => return Some(RegOffset(fp, Immediate(offset + fpOffset)))
+          case _ => return None // Not reachable
+        }
+      }
+      fpOffset += sf.pointer + 4 // 4 for the poped fp
+    }
+    None // Not reachable
   }
 }

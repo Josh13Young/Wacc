@@ -318,6 +318,8 @@ object ast {
   // Stat can call another Stat, so we represent it as a list of Stat
   case class If(cond: Expr, trueStat: List[Stat], falseStat: List[Stat])(val pos: (Int, Int)) extends Stat {
     var hasReturnOrExit = false
+    var trueSymbolTable = new SymbolTable(None)
+    var falseSymbolTable = new SymbolTable(None)
 
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       val condType = cond.getType(st)
@@ -357,6 +359,8 @@ object ast {
         case _ =>
       }
       hasReturnOrExit = trueHasReturnOrExit && falseHasReturnOrExit
+      trueSymbolTable = trueST
+      falseSymbolTable = falseST
       true
     }
   }
@@ -387,6 +391,7 @@ object ast {
   case class BeginStat(stat: List[Stat])(val pos: (Int, Int)) extends Stat {
     var hasReturnOrExit = false
 
+    var symbolTable = new SymbolTable(None)
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       val beginST = new SymbolTable(Option(st))
       beginST.isFunctionBody = st.isFunctionBody
@@ -405,6 +410,7 @@ object ast {
           hasReturnOrExit = lastBegin.hasReturnOrExit
         case _ =>
       }
+      symbolTable = beginST
       true
     }
   }

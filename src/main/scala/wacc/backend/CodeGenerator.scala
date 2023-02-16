@@ -50,22 +50,18 @@ object CodeGenerator {
           case Ident(a) => rvalueGen(rvalue) ++ ListBuffer(Store(Reg(8), getVar(a).get)) ++ ListBuffer(Mov(Reg(0), Reg(8)))
           case _ => ListBuffer()
         }
-      case If(cond, trueStat, falseStat) =>
+      case _if@If(cond, trueStat, falseStat) =>
         val trueLabel = ".L" + labelCnt
         val contLabel = ".L" + (labelCnt + 1)
         labelCnt += 2
         val condGen = exprGen(cond, 8)
         val trueGen = trueStat.map(s => generate(s))
         val falseGen = falseStat.map(s => generate(s))
-        condGen ++ ListBuffer(
-          Compare(Reg(8), Immediate(1)),
-          Branch("eq", Label(trueLabel))) ++ falseGen.flatten ++
-          ListBuffer(
-          Branch("", Label(contLabel)),
-          Label(trueLabel)
-        ) ++ trueGen.flatten ++ ListBuffer(
-          Label(contLabel)
-        ) ++ ListBuffer(Mov(Reg(0), Immediate(0)))
+        condGen ++ ListBuffer(Compare(Reg(8), Immediate(1)), Branch("eq", Label(trueLabel))) ++
+          addFrame(_if.falseSymbolTable) ++ falseGen.flatten ++ removeFrame(_if.falseSymbolTable) ++
+          ListBuffer(Branch("", Label(contLabel)), Label(trueLabel)) ++
+          addFrame(_if.falseSymbolTable) ++ trueGen.flatten ++ removeFrame(_if.trueSymbolTable) ++
+          ListBuffer(Label(contLabel)) ++ ListBuffer(Mov(Reg(0), Immediate(0)))
       case While(cond, stat) =>
         val condLabel = ".L" + labelCnt
         val loopLabel = ".L" + (labelCnt + 1)
@@ -79,6 +75,10 @@ object CodeGenerator {
           Compare(Reg(8), Immediate(1)),
           Branch("eq", Label(loopLabel))
         ) ++ ListBuffer(Mov(Reg(0), Immediate(0)))
+      case bgn@BeginStat(stat) =>
+        val stackSetUp = addFrame(bgn.symbolTable)
+        val statGen = stat.map(s => generate(s))
+        stackSetUp ++ statGen.flatten ++ removeFrame(bgn.symbolTable) ++ ListBuffer(Mov(Reg(0), Immediate(0)))
       case Skip() => ListBuffer()
       case Exit(expr) =>
         val exitGen = exprGen(expr, 8) ++ ListBuffer(Mov(Reg(0), Reg(8)))
@@ -112,6 +112,7 @@ object CodeGenerator {
             nonMainFunc += ("print_bool" -> printBool())
             printGen ++ print
           case Ident(a) =>
+            // to fix: scope redefine use sub symbol table, probs move this to another file
             st.lookup(a).get._1 match {
               case IntST() =>
                 val print = ListBuffer(BranchLink("print_int"))
