@@ -1,0 +1,108 @@
+/homes/jy2221/y2/wacc/WACC_32/andExpr.s
+calling the ARM emulator on /homes/jy2221/y2/wacc/WACC_32/andExpr.s
+please provide a stdin stream to use when emulating the program:
+-- Test: andExpr.s
+
+-- Uploaded file: 
+---------------------------------------------------------------
+.global main
+main:
+	push {lr}
+	push {fp}
+	subs sp, sp, #8
+	mov fp, sp
+	mov r8, #1
+	str r8, [fp, #0]
+	mov r0, r8
+	mov r8, #0
+	str r8, [fp, #4]
+	mov r0, r8
+	ldr r8, [fp, #0]
+	push {r8}
+	ldr r8, [fp, #4]
+	mov r9, r8
+	pop {r8}
+	and r8, r8, r9
+	mov r0, r8
+	bl print_bool
+	bl print_ln
+	ldr r8, [fp, #0]
+	push {r8}
+	mov r8, #1
+	mov r9, r8
+	pop {r8}
+	and r8, r8, r9
+	mov r0, r8
+	bl print_bool
+	bl print_ln
+	ldr r8, [fp, #4]
+	push {r8}
+	mov r8, #0
+	mov r9, r8
+	pop {r8}
+	and r8, r8, r9
+	mov r0, r8
+	bl print_bool
+	bl print_ln
+	adds sp, sp, #8
+	pop {fp}
+	mov r0, #0
+	pop {pc}
+print_str:
+	push {lr}
+	mov r2, r0
+	ldr r1, [r0, #-4]
+	ldr r0, =str_0
+	bl printf
+	mov r0, #0
+	bl fflush
+	pop {pc}
+print_bool:
+	push {lr}
+	cmp r0, #0
+	bne print_false
+	ldr r2, =str_1
+	b print_bool_cont
+print_false:
+	ldr r2, =str_2
+print_bool_cont:
+	ldr r1, [r2, #-4]
+	ldr r0, =str_0
+	bl printf
+	mov r0, #0
+	bl fflush
+	pop {pc}
+print_ln:
+	push {lr}
+	ldr r0, =str_3
+	bl puts
+	mov r0, #0
+	bl fflush
+	pop {pc}
+.data
+.word 4
+str_0:
+.asciz "%.*s"
+.word 5
+str_1:
+.asciz "false"
+.word 4
+str_2:
+.asciz "true"
+.word 0
+str_3:
+.asciz ""
+.text
+
+---------------------------------------------------------------
+
+-- Assembly Output:
+
+
+-- Emulation Output:
+false
+true
+false
+---------------------------------------------------------------
+The exit code is: 0.
+
