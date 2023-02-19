@@ -19,8 +19,8 @@ object CodeGenerator {
 
   private var nonMainFunc: Map[String, ListBuffer[Instruction]] = Map()
 
-  var st: SymbolTable = _
-  var labelCnt = 0
+  var currST: SymbolTable = _
+  private var labelCnt = 0
 
   def generate(ast: ASTNode): ListBuffer[Instruction] = {
     val mainStart = ListBuffer(
@@ -35,13 +35,13 @@ object CodeGenerator {
 
     ast match {
       case Program(functions, stat) =>
-        val stackSetUp = addFrame(st)
+        val stackSetUp = addFrame(currST)
         val statGen = stat.map(s => generate(s))
-        mainStart ++ stackSetUp ++ statGen.flatten ++ removeFrame(st) ++ mainEnd ++
+        mainStart ++ stackSetUp ++ statGen.flatten ++ removeFrame() ++ mainEnd ++
           nonMainFunc.values.flatten ++
           ListBuffer(Directive("data")) ++ getPrintInstr ++
           ListBuffer(Directive("text"))
-      case AssignNew(t, ident, rvalue) =>
+      case AssignNew(_, ident, rvalue) =>
         rvalueGen(rvalue) ++
           storeVar(ident.name, Reg(8)) ++
           ListBuffer(Move(Reg(0), Reg(8)))
@@ -56,11 +56,15 @@ object CodeGenerator {
         labelCnt += 2
         val condGen = exprGen(cond, 8)
         val falseStack = addFrame(_if.falseSymbolTable)
+        currST = _if.falseSymbolTable
+        // the parent symbol table of "if" (set when checking semantics) should be the old currST before this assignment
         val falseGen = falseStat.map(s => generate(s))
-        val falseRemove = removeFrame(_if.falseSymbolTable)
+        val falseRemove = removeFrame()
         val trueStack = addFrame(_if.trueSymbolTable)
+        currST = _if.trueSymbolTable
         val trueGen = trueStat.map(s => generate(s))
-        val trueRemove = removeFrame(_if.trueSymbolTable)
+        val trueRemove = removeFrame()
+        currST = _if.trueSymbolTable.parentTable.get
         condGen ++ ListBuffer(Compare(Reg(8), Immediate(1)), Branch("eq", Label(trueLabel))) ++
           falseStack ++ falseGen.flatten ++ falseRemove ++
           ListBuffer(Branch("", Label(contLabel)), Label(trueLabel)) ++
@@ -71,9 +75,11 @@ object CodeGenerator {
         val loopLabel = ".L" + (labelCnt + 1)
         labelCnt += 2
         val condGen = exprGen(cond, 8)
+        currST = w.symbolTable
         val whileStack = addFrame(w.symbolTable)
         val statGen = stat.map(s => generate(s))
-        val whileRemove = removeFrame(w.symbolTable)
+        val whileRemove = removeFrame()
+        currST = w.symbolTable.parentTable.get
         ListBuffer(Branch("", Label(condLabel)), Label(loopLabel)) ++
           whileStack ++ statGen.flatten ++ whileRemove ++
           ListBuffer(Label(condLabel)) ++ condGen ++
@@ -81,8 +87,10 @@ object CodeGenerator {
           ListBuffer(Move(Reg(0), Immediate(0)))
       case bgn@BeginStat(stat) =>
         val stackSetUp = addFrame(bgn.symbolTable)
+        currST = bgn.symbolTable
         val statGen = stat.map(s => generate(s))
-        stackSetUp ++ statGen.flatten ++ removeFrame(bgn.symbolTable) ++ ListBuffer(Move(Reg(0), Immediate(0)))
+        currST = bgn.symbolTable.parentTable.get
+        stackSetUp ++ statGen.flatten ++ removeFrame() ++ ListBuffer(Move(Reg(0), Immediate(0)))
       case Skip() => ListBuffer()
       case Exit(expr) =>
         val exitGen = exprGen(expr, 8) ++ ListBuffer(Move(Reg(0), Reg(8)))
@@ -120,8 +128,7 @@ object CodeGenerator {
             nonMainFunc += ("print_bool" -> printBool())
             printGen ++ print
           case Ident(a) =>
-            // to fix: scope redefine use sub symbol table, probs move this to another file
-            st.lookup(a).get._1 match {
+            currST.lookupAll(a).get._1 match {
               case IntST() =>
                 val print = ListBuffer(BranchLink("print_int"))
                 nonMainFunc += ("print_int" -> printInt())
@@ -146,6 +153,22 @@ object CodeGenerator {
         val normalPrint = generate(Print(expr)(expr.pos))
         nonMainFunc += ("print_ln" -> printLn())
         normalPrint ++ ListBuffer(BranchLink("print_ln"))
+      case Read(expr) =>
+        expr match {
+          case Ident(name) =>
+            currST.lookupAll(name).get._1 match {
+              case IntST() =>
+                println("read int")
+                nonMainFunc += ("read_int" -> readInt())
+                ListBuffer(BranchLink("read_int"), Store(Reg(0), getVar(name).get))
+              case CharST() =>
+                println("read char")
+                nonMainFunc += ("read_char" -> readChar())
+                ListBuffer(BranchLink("read_char"), Store(Reg(0), getVar(name).get))
+              case _ => ListBuffer()
+            }
+          case _ => ListBuffer()
+        }
       case _ => ListBuffer()
     }
   }
@@ -254,6 +277,7 @@ object CodeGenerator {
   }
 
   private def binOpsGen(reg: Int, expr1: Expr, expr2: Expr): ListBuffer[Instruction] = {
+    // expr1 -> reg, push reg, expr2 -> reg, reg + 1 = reg, pop reg
     val binGen = exprGen(expr1, reg) ++ ListBuffer(Push(List(Reg(reg)))) ++ exprGen(expr2, reg) ++ ListBuffer(Move(Reg(reg + 1), Reg(reg)), Pop(List(Reg(reg))))
     nonMainFunc += ("print_str" -> printString())
     binGen

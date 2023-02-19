@@ -24,6 +24,8 @@ object Instruction {
 
   case class Load(dest: Register, operand: Operand) extends Instruction
 
+  case class LoadRegSignedByte(dest: Register, operand: Operand) extends Instruction
+
   case class Compare(reg: Register, operand: Operand) extends Instruction
 
   case class Branch(cond: String, operand: Label) extends Instruction // todo change cond into enum
@@ -39,6 +41,8 @@ object Instruction {
   case class OrInstr(dest: Register, operand1: Operand, operand2: Operand) extends Instruction
 
   case class Store(dest: Register, operand: Operand) extends Instruction
+
+  case class StoreRegByte(dest: Register, operand: Operand) extends Instruction
 
   case class Xor(dest: Register, operand1: Operand, operand2: Operand) extends Instruction
 

@@ -21,6 +21,20 @@ object Print {
     )
   }
 
+  def readInt(): ListBuffer[Instruction] = {
+    ListBuffer(
+      Label("read_int"),
+      Push(List(LinkRegister())),
+      Store(Reg(0), RegOffsetWriteBack(StackPointer(), Immediate(-4))),
+      Move(Reg(1), StackPointer()),
+      Load(Reg(0), LabelJump(addStrFun("%d"))),
+      BranchLink("scanf"),
+      Load(Reg(0), RegOffset(StackPointer(), Immediate(0))),
+      AddInstr(StackPointer(), StackPointer(), Immediate(4)),
+      Pop(List(ProgramCounter()))
+    )
+  }
+
   def printString(): ListBuffer[Instruction] = {
     ListBuffer(
       Label("print_str"),
@@ -44,6 +58,20 @@ object Print {
       BranchLink("printf"),
       Move(Reg(0), Immediate(0)),
       BranchLink("fflush"),
+      Pop(List(ProgramCounter()))
+    )
+  }
+
+  def readChar(): ListBuffer[Instruction] = {
+    ListBuffer(
+      Label("read_char"),
+      Push(List(LinkRegister())),
+      StoreRegByte(Reg(0), RegOffsetWriteBack(StackPointer(), Immediate(-1))),
+      Move(Reg(1), StackPointer()),
+      Load(Reg(0), LabelJump(addStrFun("%c"))),
+      BranchLink("scanf"),
+      LoadRegSignedByte(Reg(0), RegOffset(StackPointer(), Immediate(0))),
+      AddInstr(StackPointer(), StackPointer(), Immediate(1)),
       Pop(List(ProgramCounter()))
     )
   }
