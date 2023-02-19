@@ -153,6 +153,22 @@ object CodeGenerator {
         val normalPrint = generate(Print(expr)(expr.pos))
         nonMainFunc += ("print_ln" -> printLn())
         normalPrint ++ ListBuffer(BranchLink("print_ln"))
+      case Read(expr) =>
+        expr match {
+          case Ident(name) =>
+            currST.lookupAll(name).get._1 match {
+              case IntST() =>
+                println("read int")
+                nonMainFunc += ("read_int" -> readInt())
+                ListBuffer(BranchLink("read_int"), Store(Reg(0), getVar(name).get))
+              case CharST() =>
+                println("read char")
+                nonMainFunc += ("read_char" -> readChar())
+                ListBuffer(BranchLink("read_char"), Store(Reg(0), getVar(name).get))
+              case _ => ListBuffer()
+            }
+          case _ => ListBuffer()
+        }
       case _ => ListBuffer()
     }
   }

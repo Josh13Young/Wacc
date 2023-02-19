@@ -24,6 +24,8 @@ object Translator {
         s".$name\n"
       case Load(dest, src) =>
         s"\tldr ${dest.toString}, ${src.toString}\n"
+      case LoadRegSignedByte(dest, src) =>
+        s"\tldrsb ${dest.toString}, ${src.toString}\n"
       case Compare(reg, operand) =>
         s"\tcmp ${reg.toString}, ${operand.toString}\n"
       case Branch(cond, label) =>
@@ -40,6 +42,8 @@ object Translator {
         s"\torr ${dest.toString}, ${operand1.toString}, ${operand2.toString}\n"
       case Store(dest, operand) =>
         s"\tstr ${dest.toString}, ${operand.toString}\n"
+      case StoreRegByte(dest, operand) =>
+        s"\tstrb ${dest.toString}, ${operand.toString}\n"
       case Xor(dest, operand1, operand2) =>
         s"\teor ${dest.toString}, ${operand1.toString}, ${operand2.toString}\n"
       case RevSub(dest, operand1, operand2) =>
