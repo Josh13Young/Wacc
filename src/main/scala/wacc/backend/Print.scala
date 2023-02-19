@@ -68,7 +68,7 @@ object Print {
       Push(List(LinkRegister())),
       StoreRegByte(Reg(0), RegOffsetWriteBack(StackPointer(), Immediate(-1))),
       Move(Reg(1), StackPointer()),
-      Load(Reg(0), LabelJump(addStrFun("%c"))),
+      Load(Reg(0), LabelJump(addStrFun(" %c"))),
       BranchLink("scanf"),
       LoadRegSignedByte(Reg(0), RegOffset(StackPointer(), Immediate(0))),
       AddInstr(StackPointer(), StackPointer(), Immediate(1)),
