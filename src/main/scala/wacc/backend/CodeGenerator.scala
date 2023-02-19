@@ -19,7 +19,7 @@ object CodeGenerator {
 
   private var nonMainFunc: Map[String, ListBuffer[Instruction]] = Map()
 
-  var st: SymbolTable = _
+  var currST: SymbolTable = _
   private var labelCnt = 0
 
   def generate(ast: ASTNode): ListBuffer[Instruction] = {
@@ -35,7 +35,7 @@ object CodeGenerator {
 
     ast match {
       case Program(functions, stat) =>
-        val stackSetUp = addFrame(st)
+        val stackSetUp = addFrame(currST)
         val statGen = stat.map(s => generate(s))
         mainStart ++ stackSetUp ++ statGen.flatten ++ removeFrame() ++ mainEnd ++
           nonMainFunc.values.flatten ++
@@ -56,11 +56,15 @@ object CodeGenerator {
         labelCnt += 2
         val condGen = exprGen(cond, 8)
         val falseStack = addFrame(_if.falseSymbolTable)
+        currST = _if.falseSymbolTable
+        // the parent symbol table of "if" (set when checking semantics) should be the old currST before this assignment
         val falseGen = falseStat.map(s => generate(s))
         val falseRemove = removeFrame()
         val trueStack = addFrame(_if.trueSymbolTable)
+        currST = _if.trueSymbolTable
         val trueGen = trueStat.map(s => generate(s))
         val trueRemove = removeFrame()
+        currST = _if.trueSymbolTable.parentTable.get
         condGen ++ ListBuffer(Compare(Reg(8), Immediate(1)), Branch("eq", Label(trueLabel))) ++
           falseStack ++ falseGen.flatten ++ falseRemove ++
           ListBuffer(Branch("", Label(contLabel)), Label(trueLabel)) ++
@@ -71,9 +75,11 @@ object CodeGenerator {
         val loopLabel = ".L" + (labelCnt + 1)
         labelCnt += 2
         val condGen = exprGen(cond, 8)
+        currST = w.symbolTable
         val whileStack = addFrame(w.symbolTable)
         val statGen = stat.map(s => generate(s))
         val whileRemove = removeFrame()
+        currST = w.symbolTable.parentTable.get
         ListBuffer(Branch("", Label(condLabel)), Label(loopLabel)) ++
           whileStack ++ statGen.flatten ++ whileRemove ++
           ListBuffer(Label(condLabel)) ++ condGen ++
@@ -81,7 +87,9 @@ object CodeGenerator {
           ListBuffer(Move(Reg(0), Immediate(0)))
       case bgn@BeginStat(stat) =>
         val stackSetUp = addFrame(bgn.symbolTable)
+        currST = bgn.symbolTable
         val statGen = stat.map(s => generate(s))
+        currST = bgn.symbolTable.parentTable.get
         stackSetUp ++ statGen.flatten ++ removeFrame() ++ ListBuffer(Move(Reg(0), Immediate(0)))
       case Skip() => ListBuffer()
       case Exit(expr) =>
@@ -120,8 +128,7 @@ object CodeGenerator {
             nonMainFunc += ("print_bool" -> printBool())
             printGen ++ print
           case Ident(a) =>
-            // to fix: scope redefine use sub symbol table, probs move this to another file
-            st.lookup(a).get._1 match {
+            currST.lookupAll(a).get._1 match {
               case IntST() =>
                 val print = ListBuffer(BranchLink("print_int"))
                 nonMainFunc += ("print_int" -> printInt())
