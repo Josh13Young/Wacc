@@ -47,7 +47,7 @@ object Translator {
       case Xor(dest, operand1, operand2) =>
         s"\teor ${dest.toString}, ${operand1.toString}, ${operand2.toString}\n"
       case RevSub(dest, operand1, operand2) =>
-        s"\trsb ${dest.toString}, ${operand1.toString}, ${operand2.toString}\n"
+        s"\trsbs ${dest.toString}, ${operand1.toString}, ${operand2.toString}\n"
       case _ => ""
     }
   }

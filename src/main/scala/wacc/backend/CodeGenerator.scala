@@ -203,7 +203,9 @@ object CodeGenerator {
         val not = ListBuffer(Xor(Reg(reg), Reg(reg), Immediate(1)))
         exprGen(expr, reg) ++ not
       case Neg(expr) =>
-        val neg = ListBuffer(RevSub(Reg(reg), Reg(reg), Immediate(0)))
+        val neg = ListBuffer(RevSub(Reg(reg), Reg(reg), Immediate(0)), BranchLinkWithCond("vs", "overflow_error"))
+        nonMainFunc += ("overflow_error" -> overflowError())
+        nonMainFunc += ("print_str" -> printString()) // for printing error message
         exprGen(expr, reg) ++ neg
       case Ord(expr) => // do nothing
         exprGen(expr, reg)
