@@ -143,10 +143,25 @@ object CodeGenerator {
             val print = ListBuffer(BranchLink("print_bool"))
             nonMainFunc += ("print_bool" -> printBool())
             printGen ++ print
-          case ArrayElem(_, _) =>
-            val print = ListBuffer(BranchLink("print_int"))
-            nonMainFunc += ("print_int" -> printInt())
-            printGen ++ print
+          case ArrayElem(ident, _) =>
+            currST.lookupAll(ident.name).get._1 match {
+              case ArrayST(CharST()) =>
+                val print = ListBuffer(BranchLink("print_char"))
+                nonMainFunc += ("print_char" -> printChar())
+                printGen ++ print
+              case ArrayST(StringST()) =>
+                val print = ListBuffer(BranchLink("print_str"))
+                nonMainFunc += ("print_str" -> printString())
+                printGen ++ print
+              case ArrayST(BoolST()) =>
+                val print = ListBuffer(BranchLink("print_bool"))
+                nonMainFunc += ("print_bool" -> printBool())
+                printGen ++ print
+              case _ =>
+                val print = ListBuffer(BranchLink("print_int"))
+                nonMainFunc += ("print_int" -> printInt())
+                printGen ++ print
+            }
           case Ident(a) =>
             currST.lookupAll(a).get._1 match {
               case IntST() =>
@@ -211,7 +226,7 @@ object CodeGenerator {
   private def arrayLiterGen(array: ArrayLiter): ListBuffer[Instruction] = {
     val result = ListBuffer[Instruction]()
     array.arrayType match {
-      case IntST() =>
+      case IntST() | StringST() =>
         result += Move(Reg(0), Immediate((array.exprList.length + 1) * 4))
         result += BranchLink("malloc")
         result += Move(Reg(12), Reg(0))
@@ -223,7 +238,7 @@ object CodeGenerator {
           result += Store(Reg(8), RegOffset(Reg(12), Immediate(i * 4)))
         }
         result += Move(Reg(8), Reg(12))
-      case CharST() =>
+      case CharST() | BoolST() =>
         result += Move(Reg(0), Immediate(array.exprList.length + 4))
         result += BranchLink("malloc")
         result += Move(Reg(12), Reg(0))
