@@ -6,7 +6,7 @@ import wacc.backend.Operand._
 import wacc.backend.Print._
 import wacc.backend.Stack.{addFrame, getVar, removeFrame, storeVar}
 import wacc.backend.Translator.translate
-import wacc.frontend.STType.{BoolST, CharST, IntST, StringST}
+import wacc.frontend.STType.{ArrayST, BoolST, CharST, IntST, StringST}
 import wacc.frontend.SymbolTable
 
 import scala.collection.mutable.ListBuffer
@@ -203,6 +203,21 @@ object CodeGenerator {
           result += Store(Reg(8), RegOffset(Reg(12), Immediate(i * 4)))
         }
         result += Move(Reg(8), Reg(12))
+      case ArrayST(IntST()) =>
+        result += Move(Reg(0), Immediate((array.exprList.length + 1) * 4))
+        result += BranchLink("malloc")
+        result += Move(Reg(12), Reg(0))
+        result += AddInstr(Reg(12), Reg(12), Immediate(4))
+        result += Load(Reg(9), ImmediateJump(Immediate(array.exprList.length)))
+        result += Store(Reg(9), RegOffset(Reg(12), Immediate(-4))) // length
+        for (i <- array.exprList.indices) {
+          array.exprList(i) match {
+            case Ident(name) =>
+              result += Load(Reg(8), getVar(name).get)
+          }
+          result += Store(Reg(8), RegOffset(Reg(12), Immediate(i * 4)))
+        }
+        result += Move(Reg(8), Reg(12))
       case _ =>
     }
     result
@@ -213,9 +228,17 @@ object CodeGenerator {
     nonMainFunc += ("bounds_error" -> boundsError())
     val result = ListBuffer[Instruction]()
     result += Move(Reg(12), StackPointer())
-    for (i <- array.exprList.indices) {
+    result ++= exprGen(array.exprList.head, 10)
+    result += Load(Reg(8), getVar(array.ident.name).get)
+    result += Push(List(Reg(3)))
+    result += Move(Reg(3), Reg(8))
+    result += BranchLink("array_load")
+    result += Move(Reg(8), Reg(3))
+    result += Pop(List(Reg(3)))
+    for (i <- array.exprList.indices.tail) {
+      result += Push(List(Reg(8)))
       result ++= exprGen(array.exprList(i), 10)
-      result += Load(Reg(8), getVar(array.ident.name).get)
+      result += Pop(List(Reg(8)))
       result += Push(List(Reg(3)))
       result += Move(Reg(3), Reg(8))
       result += BranchLink("array_load")
