@@ -76,6 +76,54 @@ object Print {
     )
   }
 
+  def arrayLoad(): ListBuffer[Instruction] = {
+    ListBuffer(
+      Label("array_load"),
+      Push(List(LinkRegister())),
+      Compare(Reg(10), Immediate(0)),
+      MoveCond("lt", Reg(1), Reg(10)),
+      BranchLinkWithCond("lt", "bounds_error"),
+      Load(LinkRegister(), RegOffset(Reg(3), Immediate(-4))),
+      Compare(Reg(10), LinkRegister()),
+      MoveCond("ge", Reg(1), Reg(10)),
+      BranchLinkWithCond("ge", "bounds_error"),
+      Load(Reg(3), RegOffsetOperand2(Reg(3), Operand2(Reg(10), "lsl", Immediate(2)))),
+      Pop(List(ProgramCounter()))
+    )
+  }
+
+  def arrayStore(): ListBuffer[Instruction] = {
+    ListBuffer(
+      Label("array_store"),
+      Push(List(LinkRegister())),
+      Compare(Reg(10), Immediate(0)),
+      MoveCond("lt", Reg(1), Reg(10)),
+      BranchLinkWithCond("lt", "bounds_error"),
+      Load(LinkRegister(), RegOffset(Reg(3), Immediate(-4))),
+      Compare(Reg(10), LinkRegister()),
+      MoveCond("ge", Reg(1), Reg(10)),
+      BranchLinkWithCond("ge", "bounds_error"),
+      Store(Reg(8), RegOffsetOperand2(Reg(3), Operand2(Reg(10), "lsl", Immediate(2)))),
+      Pop(List(ProgramCounter()))
+    )
+  }
+
+  def arrayStoreByte(): ListBuffer[Instruction] = {
+    ListBuffer(
+      Label("array_store_b"),
+      Push(List(LinkRegister())),
+      Compare(Reg(10), Immediate(0)),
+      MoveCond("lt", Reg(1), Reg(10)),
+      BranchLinkWithCond("lt", "bounds_error"),
+      Load(LinkRegister(), RegOffset(Reg(3), Immediate(-4))),
+      Compare(Reg(10), LinkRegister()),
+      MoveCond("ge", Reg(1), Reg(10)),
+      BranchLinkWithCond("ge", "bounds_error"),
+      StoreRegByte(Reg(8), RegOffsetReg(Reg(3), Reg(10))),
+      Pop(List(ProgramCounter()))
+    )
+  }
+
   def overflowError(): ListBuffer[Instruction] = {
     ListBuffer(
       Label("overflow_error"),
@@ -91,6 +139,18 @@ object Print {
       Label("divide_by_zero_error"),
       Load(Reg(0), LabelJump(addStrFun("fatal error: divide by zero"))),
       BranchLink("print_str"),
+      Move(Reg(0), Immediate(255)),
+      BranchLink("exit")
+    )
+  }
+
+  def boundsError(): ListBuffer[Instruction] = {
+    ListBuffer(
+      Label("bounds_error"),
+      Load(Reg(0), LabelJump(addStrFun("fatal error: array index out of bounds"))),
+      BranchLink("printf"),
+      Move(Reg(0), Immediate(0)),
+      BranchLink("fflush"),
       Move(Reg(0), Immediate(255)),
       BranchLink("exit")
     )

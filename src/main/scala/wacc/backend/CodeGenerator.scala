@@ -6,7 +6,7 @@ import wacc.backend.Operand._
 import wacc.backend.Print._
 import wacc.backend.Stack.{addFrame, getVar, removeFrame, storeVar}
 import wacc.backend.Translator.translate
-import wacc.frontend.STType.{BoolST, CharST, IntST, StringST}
+import wacc.frontend.STType._
 import wacc.frontend.SymbolTable
 
 import scala.collection.mutable.ListBuffer
@@ -48,6 +48,22 @@ object CodeGenerator {
       case Assign(lvalue, rvalue) =>
         lvalue match {
           case Ident(a) => rvalueGen(rvalue) ++ ListBuffer(Store(Reg(8), getVar(a).get)) ++ ListBuffer(Move(Reg(0), Reg(8)))
+          case ArrayElem(ident, exprList) =>
+            var isCharArray = false
+            currST.lookupAll(ident.name).get._1 match {
+              case ArrayST(CharST()) => isCharArray = true
+              case _ =>
+            }
+            if (isCharArray) nonMainFunc += ("array_store_b" -> arrayStoreByte())
+            else nonMainFunc += ("array_store" -> arrayStore())
+            nonMainFunc += ("bounds_error" -> boundsError())
+            val result = ListBuffer[Instruction]()
+            result ++= exprGen(exprList.head, 10)
+            result ++= rvalueGen(rvalue)
+            result += Load(Reg(3), getVar(ident.name).get)
+            if (isCharArray) result += BranchLink("array_store_b")
+            else result += BranchLink("array_store")
+            result
           case _ => ListBuffer()
         }
       case _if@If(cond, trueStat, falseStat) =>
@@ -115,7 +131,7 @@ object CodeGenerator {
             val print = ListBuffer(BranchLink("print_bool"))
             nonMainFunc += ("print_bool" -> printBool())
             printGen ++ print
-          case Add(_, _) | Mul(_, _) | Div(_, _) | Sub(_, _) | Mod(_, _) | Neg(_) | Ord(_) =>
+          case Add(_, _) | Mul(_, _) | Div(_, _) | Sub(_, _) | Mod(_, _) | Neg(_) | Ord(_) | Len(_) =>
             val print = ListBuffer(BranchLink("print_int"))
             nonMainFunc += ("print_int" -> printInt())
             printGen ++ print
@@ -127,6 +143,25 @@ object CodeGenerator {
             val print = ListBuffer(BranchLink("print_bool"))
             nonMainFunc += ("print_bool" -> printBool())
             printGen ++ print
+          case ArrayElem(ident, _) =>
+            currST.lookupAll(ident.name).get._1 match {
+              case ArrayST(CharST()) =>
+                val print = ListBuffer(BranchLink("print_char"))
+                nonMainFunc += ("print_char" -> printChar())
+                printGen ++ print
+              case ArrayST(StringST()) =>
+                val print = ListBuffer(BranchLink("print_str"))
+                nonMainFunc += ("print_str" -> printString())
+                printGen ++ print
+              case ArrayST(BoolST()) =>
+                val print = ListBuffer(BranchLink("print_bool"))
+                nonMainFunc += ("print_bool" -> printBool())
+                printGen ++ print
+              case _ =>
+                val print = ListBuffer(BranchLink("print_int"))
+                nonMainFunc += ("print_int" -> printInt())
+                printGen ++ print
+            }
           case Ident(a) =>
             currST.lookupAll(a).get._1 match {
               case IntST() =>
@@ -142,6 +177,10 @@ object CodeGenerator {
                 nonMainFunc += ("print_char" -> printChar())
                 printGen ++ print
               case StringST() =>
+                val print = ListBuffer(BranchLink("print_str"))
+                nonMainFunc += ("print_str" -> printString())
+                printGen ++ print
+              case ArrayST(CharST()) =>
                 val print = ListBuffer(BranchLink("print_str"))
                 nonMainFunc += ("print_str" -> printString())
                 printGen ++ print
@@ -176,12 +215,84 @@ object CodeGenerator {
   private def rvalueGen(rv: Rvalue): ListBuffer[Instruction] = {
     rv match {
       case expr: Expr => exprGen(expr, 8)
-      case ArrayLiter(_) => ListBuffer()
+      case ar@ArrayLiter(_) => arrayLiterGen(ar)
       case NewPair(_, _) => ListBuffer()
       case FstElem(_) => ListBuffer()
       case SndElem(_) => ListBuffer()
       case Call(_, _) => ListBuffer()
     }
+  }
+
+  private def arrayLiterGen(array: ArrayLiter): ListBuffer[Instruction] = {
+    val result = ListBuffer[Instruction]()
+    array.arrayType match {
+      case IntST() | StringST() =>
+        result += Move(Reg(0), Immediate((array.exprList.length + 1) * 4))
+        result += BranchLink("malloc")
+        result += Move(Reg(12), Reg(0))
+        result += AddInstr(Reg(12), Reg(12), Immediate(4))
+        result += Load(Reg(9), ImmediateJump(Immediate(array.exprList.length)))
+        result += Store(Reg(9), RegOffset(Reg(12), Immediate(-4))) // length
+        for (i <- array.exprList.indices) {
+          result ++= exprGen(array.exprList(i), 8)
+          result += Store(Reg(8), RegOffset(Reg(12), Immediate(i * 4)))
+        }
+        result += Move(Reg(8), Reg(12))
+      case CharST() | BoolST() =>
+        result += Move(Reg(0), Immediate(array.exprList.length + 4))
+        result += BranchLink("malloc")
+        result += Move(Reg(12), Reg(0))
+        result += AddInstr(Reg(12), Reg(12), Immediate(4))
+        result += Load(Reg(9), ImmediateJump(Immediate(array.exprList.length)))
+        result += Store(Reg(9), RegOffset(Reg(12), Immediate(-4))) // length
+        for (i <- array.exprList.indices) {
+          result ++= exprGen(array.exprList(i), 8)
+          result += StoreRegByte(Reg(8), RegOffset(Reg(12), Immediate(i)))
+        }
+        result += Move(Reg(8), Reg(12))
+      case ArrayST(IntST()) =>
+        result += Move(Reg(0), Immediate((array.exprList.length + 1) * 4))
+        result += BranchLink("malloc")
+        result += Move(Reg(12), Reg(0))
+        result += AddInstr(Reg(12), Reg(12), Immediate(4))
+        result += Load(Reg(9), ImmediateJump(Immediate(array.exprList.length)))
+        result += Store(Reg(9), RegOffset(Reg(12), Immediate(-4))) // length
+        for (i <- array.exprList.indices) {
+          array.exprList(i) match {
+            case Ident(name) =>
+              result += Load(Reg(8), getVar(name).get)
+          }
+          result += Store(Reg(8), RegOffset(Reg(12), Immediate(i * 4)))
+        }
+        result += Move(Reg(8), Reg(12))
+      case _ =>
+    }
+    result
+  }
+
+  private def arrayElemGen(array: ArrayElem): ListBuffer[Instruction] = {
+    nonMainFunc += ("array_load" -> arrayLoad())
+    nonMainFunc += ("bounds_error" -> boundsError())
+    val result = ListBuffer[Instruction]()
+    result += Move(Reg(12), StackPointer())
+    result ++= exprGen(array.exprList.head, 10)
+    result += Load(Reg(8), getVar(array.ident.name).get)
+    result += Push(List(Reg(3)))
+    result += Move(Reg(3), Reg(8))
+    result += BranchLink("array_load")
+    result += Move(Reg(8), Reg(3))
+    result += Pop(List(Reg(3)))
+    for (i <- array.exprList.indices.tail) {
+      result += Push(List(Reg(8)))
+      result ++= exprGen(array.exprList(i), 10)
+      result += Pop(List(Reg(8)))
+      result += Push(List(Reg(3)))
+      result += Move(Reg(3), Reg(8))
+      result += BranchLink("array_load")
+      result += Move(Reg(8), Reg(3))
+      result += Pop(List(Reg(3)))
+    }
+    result
   }
 
   private def exprGen(expr: Expr, reg: Int): ListBuffer[Instruction] = {
@@ -199,6 +310,7 @@ object CodeGenerator {
         ListBuffer(Move(Reg(reg), Immediate(value.toInt)))
       case BoolLiter(value) =>
         ListBuffer(Move(Reg(reg), Immediate(if (value) 1 else 0)))
+      case a@ArrayElem(_, _) => arrayElemGen(a)
       case Not(expr) =>
         val not = ListBuffer(Xor(Reg(reg), Reg(reg), Immediate(1)))
         exprGen(expr, reg) ++ not
@@ -207,6 +319,9 @@ object CodeGenerator {
         nonMainFunc += ("overflow_error" -> overflowError())
         nonMainFunc += ("print_str" -> printString()) // for printing error message
         exprGen(expr, reg) ++ neg
+      case Len(expr) =>
+        val len = ListBuffer(Load(Reg(reg), RegOffset(Reg(reg), Immediate(-4))))
+        exprGen(expr, reg) ++ len
       case Ord(expr) => // do nothing
         exprGen(expr, reg)
       case Chr(expr) => // do nothing
