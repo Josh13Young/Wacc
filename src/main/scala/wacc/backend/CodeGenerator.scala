@@ -124,7 +124,7 @@ object CodeGenerator {
             val print = ListBuffer(BranchLink("print_bool"))
             nonMainFunc += ("print_bool" -> printBool())
             printGen ++ print
-          case Add(_, _) | Mul(_, _) | Div(_, _) | Sub(_, _) | Mod(_, _) | Neg(_) | Ord(_) =>
+          case Add(_, _) | Mul(_, _) | Div(_, _) | Sub(_, _) | Mod(_, _) | Neg(_) | Ord(_) | Len(_) =>
             val print = ListBuffer(BranchLink("print_int"))
             nonMainFunc += ("print_int" -> printInt())
             printGen ++ print
@@ -281,6 +281,9 @@ object CodeGenerator {
         nonMainFunc += ("overflow_error" -> overflowError())
         nonMainFunc += ("print_str" -> printString()) // for printing error message
         exprGen(expr, reg) ++ neg
+      case Len(expr) =>
+        val len = ListBuffer(Load(Reg(reg), RegOffset(Reg(reg), Immediate(-4))))
+        exprGen(expr, reg) ++ len
       case Ord(expr) => // do nothing
         exprGen(expr, reg)
       case Chr(expr) => // do nothing
