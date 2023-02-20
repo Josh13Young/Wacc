@@ -6,7 +6,7 @@ import wacc.backend.Operand._
 import wacc.backend.Print._
 import wacc.backend.Stack.{addFrame, getVar, removeFrame, storeVar}
 import wacc.backend.Translator.translate
-import wacc.frontend.STType.{ArrayST, BoolST, CharST, IntST, StringST}
+import wacc.frontend.STType._
 import wacc.frontend.SymbolTable
 
 import scala.collection.mutable.ListBuffer
@@ -49,13 +49,20 @@ object CodeGenerator {
         lvalue match {
           case Ident(a) => rvalueGen(rvalue) ++ ListBuffer(Store(Reg(8), getVar(a).get)) ++ ListBuffer(Move(Reg(0), Reg(8)))
           case ArrayElem(ident, exprList) =>
-            nonMainFunc += ("array_store" -> arrayStore())
+            var isCharArray = false
+            currST.lookupAll(ident.name).get._1 match {
+              case ArrayST(CharST()) => isCharArray = true
+              case _ =>
+            }
+            if (isCharArray) nonMainFunc += ("array_store_b" -> arrayStoreByte())
+            else nonMainFunc += ("array_store" -> arrayStore())
             nonMainFunc += ("bounds_error" -> boundsError())
             val result = ListBuffer[Instruction]()
             result ++= exprGen(exprList.head, 10)
             result ++= rvalueGen(rvalue)
             result += Load(Reg(3), getVar(ident.name).get)
-            result += BranchLink("array_store")
+            if (isCharArray) result += BranchLink("array_store_b")
+            else result += BranchLink("array_store")
             result
           case _ => ListBuffer()
         }
@@ -158,6 +165,10 @@ object CodeGenerator {
                 val print = ListBuffer(BranchLink("print_str"))
                 nonMainFunc += ("print_str" -> printString())
                 printGen ++ print
+              case ArrayST(CharST()) =>
+                val print = ListBuffer(BranchLink("print_str"))
+                nonMainFunc += ("print_str" -> printString())
+                printGen ++ print
               case _ => ListBuffer()
             }
           case _ => ListBuffer()
@@ -210,6 +221,18 @@ object CodeGenerator {
         for (i <- array.exprList.indices) {
           result ++= exprGen(array.exprList(i), 8)
           result += Store(Reg(8), RegOffset(Reg(12), Immediate(i * 4)))
+        }
+        result += Move(Reg(8), Reg(12))
+      case CharST() =>
+        result += Move(Reg(0), Immediate(array.exprList.length + 4))
+        result += BranchLink("malloc")
+        result += Move(Reg(12), Reg(0))
+        result += AddInstr(Reg(12), Reg(12), Immediate(4))
+        result += Load(Reg(9), ImmediateJump(Immediate(array.exprList.length)))
+        result += Store(Reg(9), RegOffset(Reg(12), Immediate(-4))) // length
+        for (i <- array.exprList.indices) {
+          result ++= exprGen(array.exprList(i), 8)
+          result += StoreRegByte(Reg(8), RegOffset(Reg(12), Immediate(i)))
         }
         result += Move(Reg(8), Reg(12))
       case ArrayST(IntST()) =>

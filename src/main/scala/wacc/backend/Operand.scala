@@ -42,6 +42,10 @@ object Operand {
     override def toString: String = s"[$reg, $offset]"
   }
 
+  case class RegOffsetReg(reg1: Register, reg2: Register) extends Operand {
+    override def toString: String = s"[$reg1, $reg2]"
+  }
+
   case class LabelJump(label: String) extends Operand {
     override def toString: String = s"=$label"
   }
