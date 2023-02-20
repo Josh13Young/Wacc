@@ -76,6 +76,19 @@ object Print {
     )
   }
 
+  def printAddr(): ListBuffer[Instruction] = {
+    ListBuffer(
+      Label("print_addr"),
+      Push(List(LinkRegister())),
+      Move(Reg(1), Reg(0)),
+      Load(Reg(0), LabelJump(addStrFun("%p"))),
+      BranchLink("printf"),
+      Move(Reg(0), Immediate(0)),
+      BranchLink("fflush"),
+      Pop(List(ProgramCounter()))
+    )
+  }
+
   def arrayLoad(): ListBuffer[Instruction] = {
     ListBuffer(
       Label("array_load"),
