@@ -92,6 +92,22 @@ object Print {
     )
   }
 
+  def arrayStore(): ListBuffer[Instruction] = {
+    ListBuffer(
+      Label("array_store"),
+      Push(List(LinkRegister())),
+      Compare(Reg(10), Immediate(0)),
+      MoveCond("lt", Reg(1), Reg(10)),
+      BranchLinkWithCond("lt", "bounds_error"),
+      Load(LinkRegister(), RegOffset(Reg(3), Immediate(-4))),
+      Compare(Reg(10), LinkRegister()),
+      MoveCond("ge", Reg(1), Reg(10)),
+      BranchLinkWithCond("ge", "bounds_error"),
+      Store(Reg(8), RegOffsetOperand2(Reg(3), Operand2(Reg(10), "lsl", Immediate(2)))),
+      Pop(List(ProgramCounter()))
+    )
+  }
+
   def overflowError(): ListBuffer[Instruction] = {
     ListBuffer(
       Label("overflow_error"),

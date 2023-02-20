@@ -48,6 +48,15 @@ object CodeGenerator {
       case Assign(lvalue, rvalue) =>
         lvalue match {
           case Ident(a) => rvalueGen(rvalue) ++ ListBuffer(Store(Reg(8), getVar(a).get)) ++ ListBuffer(Move(Reg(0), Reg(8)))
+          case ArrayElem(ident, exprList) =>
+            nonMainFunc += ("array_store" -> arrayStore())
+            nonMainFunc += ("bounds_error" -> boundsError())
+            val result = ListBuffer[Instruction]()
+            result ++= exprGen(exprList.head, 10)
+            result ++= rvalueGen(rvalue)
+            result += Load(Reg(3), getVar(ident.name).get)
+            result += BranchLink("array_store")
+            result
           case _ => ListBuffer()
         }
       case _if@If(cond, trueStat, falseStat) =>
