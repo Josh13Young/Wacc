@@ -127,6 +127,10 @@ object CodeGenerator {
             val print = ListBuffer(BranchLink("print_bool"))
             nonMainFunc += ("print_bool" -> printBool())
             printGen ++ print
+          case ArrayElem(_, _) =>
+            val print = ListBuffer(BranchLink("print_int"))
+            nonMainFunc += ("print_int" -> printInt())
+            printGen ++ print
           case Ident(a) =>
             currST.lookupAll(a).get._1 match {
               case IntST() =>
@@ -176,12 +180,49 @@ object CodeGenerator {
   private def rvalueGen(rv: Rvalue): ListBuffer[Instruction] = {
     rv match {
       case expr: Expr => exprGen(expr, 8)
-      case ArrayLiter(_) => ListBuffer()
+      case ar@ArrayLiter(_) => arrayLiterGen(ar)
       case NewPair(_, _) => ListBuffer()
       case FstElem(_) => ListBuffer()
       case SndElem(_) => ListBuffer()
       case Call(_, _) => ListBuffer()
     }
+  }
+
+  private def arrayLiterGen(array: ArrayLiter): ListBuffer[Instruction] = {
+    val result = ListBuffer[Instruction]()
+    array.arrayType match {
+      case IntST() =>
+        result += Move(Reg(0), Immediate((array.exprList.length + 1) * 4))
+        result += BranchLink("malloc")
+        result += Move(Reg(12), Reg(0))
+        result += AddInstr(Reg(12), Reg(12), Immediate(4))
+        result += Load(Reg(9), ImmediateJump(Immediate(array.exprList.length)))
+        result += Store(Reg(9), RegOffset(Reg(12), Immediate(-4))) // length
+        for (i <- array.exprList.indices) {
+          result ++= exprGen(array.exprList(i), 8)
+          result += Store(Reg(8), RegOffset(Reg(12), Immediate(i * 4)))
+        }
+        result += Move(Reg(8), Reg(12))
+      case _ =>
+    }
+    result
+  }
+
+  private def arrayElemGen(array: ArrayElem): ListBuffer[Instruction] = {
+    nonMainFunc += ("array_load" -> arrayLoad())
+    nonMainFunc += ("bounds_error" -> boundsError())
+    val result = ListBuffer[Instruction]()
+    result += Move(Reg(12), StackPointer())
+    for (i <- array.exprList.indices) {
+      result ++= exprGen(array.exprList(i), 10)
+      result += Load(Reg(8), getVar(array.ident.name).get)
+      result += Push(List(Reg(3)))
+      result += Move(Reg(3), Reg(8))
+      result += BranchLink("array_load")
+      result += Move(Reg(8), Reg(3))
+      result += Pop(List(Reg(3)))
+    }
+    result
   }
 
   private def exprGen(expr: Expr, reg: Int): ListBuffer[Instruction] = {
@@ -199,6 +240,7 @@ object CodeGenerator {
         ListBuffer(Move(Reg(reg), Immediate(value.toInt)))
       case BoolLiter(value) =>
         ListBuffer(Move(Reg(reg), Immediate(if (value) 1 else 0)))
+      case a@ArrayElem(_, _) => arrayElemGen(a)
       case Not(expr) =>
         val not = ListBuffer(Xor(Reg(reg), Reg(reg), Immediate(1)))
         exprGen(expr, reg) ++ not

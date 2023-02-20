@@ -21,7 +21,7 @@ object Stack {
   private def addVar(name: String, t: TypeST, sf: StackFrame): Unit = {
     var offset = 0
     t match {
-      case IntST() | BoolST() | CharST() | StringST() => offset = 4
+      case IntST() | BoolST() | CharST() | StringST() | ArrayST(IntST()) => offset = 4
       case _ => offset = 4
     }
     val location = RegOffset(FramePointer(), Immediate(sf.pointer))

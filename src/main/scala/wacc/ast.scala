@@ -534,6 +534,7 @@ object ast {
 
   // <ARRAY-LITER>
   case class ArrayLiter(exprList: List[Expr])(val pos: (Int, Int)) extends Rvalue {
+    var arrayType: TypeST = _
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       var result = true
       if (exprList.nonEmpty) {
@@ -553,9 +554,11 @@ object ast {
 
     override def getType(st: SymbolTable)(implicit errors: SemanticError): TypeST = {
       if (exprList.isEmpty) {
+        arrayType = AnyST()
         ArrayST(AnyST())
       } else {
         val exprType = exprList.head.getType(st)
+        arrayType = exprType
         ArrayST(exprType)
       }
     }
