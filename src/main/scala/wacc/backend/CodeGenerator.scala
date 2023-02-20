@@ -184,6 +184,10 @@ object CodeGenerator {
                 val print = ListBuffer(BranchLink("print_str"))
                 nonMainFunc += ("print_str" -> printString())
                 printGen ++ print
+              case ArrayST(_) =>
+                val print = ListBuffer(BranchLink("print_int"))
+                nonMainFunc += ("print_int" -> printInt())
+                printGen ++ print
               case _ => ListBuffer()
             }
           case _ => ListBuffer()
@@ -261,6 +265,7 @@ object CodeGenerator {
           array.exprList(i) match {
             case Ident(name) =>
               result += Load(Reg(8), getVar(name).get)
+            case _ => // ?
           }
           result += Store(Reg(8), RegOffset(Reg(12), Immediate(i * 4)))
         }
