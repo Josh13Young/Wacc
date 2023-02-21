@@ -201,7 +201,7 @@ object CodeGenerator {
                 val print = ListBuffer(BranchLink("print_str"))
                 nonMainFunc += ("print_str" -> printString())
                 printGen ++ print
-              case ArrayST(_) =>
+              case ArrayST(_) | PairST(_, _) =>
                 val print = ListBuffer(BranchLink("print_addr"))
                 nonMainFunc += ("print_addr" -> printAddr())
                 printGen ++ print
@@ -295,6 +295,7 @@ object CodeGenerator {
         result ++= lvalueGen(lvalue)
         result += Load(Reg(8), RegOffset(Reg(8), Immediate(4)))
         result += Load(Reg(8), RegOffset(Reg(8), Immediate(0)))
+      case arr@ArrayElem(_, _) => result ++= arrayElemGen(arr)
       case _ =>
     }
     result
@@ -303,7 +304,7 @@ object CodeGenerator {
   private def arrayLiterGen(array: ArrayLiter): ListBuffer[Instruction] = {
     val result = ListBuffer[Instruction]()
     array.arrayType match {
-      case IntST() | StringST() =>
+      case IntST() | StringST() | PairST(_,_) =>
         result += Move(Reg(0), Immediate((array.exprList.length + 1) * 4))
         result += BranchLink("malloc")
         result += Move(Reg(12), Reg(0))
@@ -381,7 +382,7 @@ object CodeGenerator {
   @tailrec
   private def arrayElemSizeHelper(t: TypeST): Boolean = {
     t match {
-      case ArrayST(IntST()) | ArrayST(StringST()) => false
+      case ArrayST(IntST()) | ArrayST(StringST()) | ArrayST(PairST(_ ,_))=> false
       case ArrayST(CharST()) | ArrayST(BoolST()) => true
       case ArrayST(t) => arrayElemSizeHelper(t)
       case _ => false
