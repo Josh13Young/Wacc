@@ -9,6 +9,7 @@ import wacc.backend.Translator.translate
 import wacc.frontend.STType._
 import wacc.frontend.SymbolTable
 
+import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 
 object CodeGenerator {
@@ -348,15 +349,20 @@ object CodeGenerator {
   }
 
   private def arrayElemGen(array: ArrayElem): ListBuffer[Instruction] = {
-    nonMainFunc += ("array_load" -> arrayLoad())
     nonMainFunc += ("bounds_error" -> boundsError())
     val result = ListBuffer[Instruction]()
+    var label = "array_load"
+    if (arrayElemSizeHelper(currST.lookupAll(array.ident.name).get._1)) {
+      label = "array_load_b"
+      nonMainFunc += (label -> arrayLoadByte())
+    } else
+      nonMainFunc += (label -> arrayLoad())
     result += Move(Reg(12), StackPointer())
     result ++= exprGen(array.exprList.head, 10)
     result += Load(Reg(8), getVar(array.ident.name).get)
     result += Push(List(Reg(3)))
     result += Move(Reg(3), Reg(8))
-    result += BranchLink("array_load")
+    result += BranchLink(label)
     result += Move(Reg(8), Reg(3))
     result += Pop(List(Reg(3)))
     for (i <- array.exprList.indices.tail) {
@@ -365,11 +371,21 @@ object CodeGenerator {
       result += Pop(List(Reg(8)))
       result += Push(List(Reg(3)))
       result += Move(Reg(3), Reg(8))
-      result += BranchLink("array_load")
+      result += BranchLink(label)
       result += Move(Reg(8), Reg(3))
       result += Pop(List(Reg(3)))
     }
     result
+  }
+
+  @tailrec
+  private def arrayElemSizeHelper(t: TypeST): Boolean = {
+    t match {
+      case ArrayST(IntST()) | ArrayST(StringST()) => false
+      case ArrayST(CharST()) | ArrayST(BoolST()) => true
+      case ArrayST(t) => arrayElemSizeHelper(t)
+      case _ => false
+    }
   }
 
   private def exprGen(expr: Expr, reg: Int): ListBuffer[Instruction] = {
