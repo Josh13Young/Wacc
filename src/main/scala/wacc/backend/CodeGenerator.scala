@@ -201,7 +201,7 @@ object CodeGenerator {
                 val print = ListBuffer(BranchLink("print_str"))
                 nonMainFunc += ("print_str" -> printString())
                 printGen ++ print
-              case ArrayST(_) =>
+              case ArrayST(_) | PairST(_, _) =>
                 val print = ListBuffer(BranchLink("print_addr"))
                 nonMainFunc += ("print_addr" -> printAddr())
                 printGen ++ print
