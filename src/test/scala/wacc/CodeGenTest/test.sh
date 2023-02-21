@@ -1,1 +1,1 @@
-/wacc_examples/refEmulate /homes/jy2221/y2/wacc/WACC_32/temp.s < /dev/null | tee ./test.out
+/wacc_examples/refEmulate temp.s < /dev/null | tee ./test.out

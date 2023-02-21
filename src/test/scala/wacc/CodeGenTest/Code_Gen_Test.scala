@@ -15,24 +15,20 @@ import sys.process._
 class Code_Gen_Test extends AnyFlatSpec {
 
   "test" should "succeed" in {
-    val testlist = "wacc_examples/valid/array"
+    val testlist = "wacc_examples/valid/expressions"
     val files = getListOfFiles(testlist)
 
-
-    println(0)
-    for (file <- files) {
-      println(file)
-      println(1)
-    }
+    val file = files.head
+    println(file)
 
 
-    //val output = helper(file)
-    //println(output)
+    val output = helper(file)
+    println(output)
     1 shouldBe(1)
 
   }
 
-  private def helper(file: String): String = {
+  private def helper(file: File): String = {
     var output = ""
     val source = scala.io.Source.fromFile(file)
     val inputList = try source.getLines().toList finally source.close()
@@ -50,7 +46,9 @@ class Code_Gen_Test extends AnyFlatSpec {
           pw.write(code)
           pw.close()
 
-          val output = ("./test.sh" !!)
+          println(">>>>>>>>>>>>>>>")
+          //val output = ("./src/test/scala/wacc/CodeGenTest/test.sh" !!)
+          println("<<<<<<<<<<<<<<")
           output
         } else {
           seb.printAll()
