@@ -64,6 +64,22 @@ object CodeGenerator {
             if (isCharArray) result += BranchLink("array_store_b")
             else result += BranchLink("array_store")
             result
+          case fst@FstElem(_) =>
+            val result = ListBuffer[Instruction]()
+            result ++= lvalueGen(fst).dropRight(1)
+            result += Push(List(Reg(8)))
+            result += Pop(List(Reg(9)))
+            result ++= rvalueGen(rvalue)
+            result += Store(Reg(8), RegOffset(Reg(9), Immediate(0)))
+            result
+          case snd@SndElem(_) =>
+            val result = ListBuffer[Instruction]()
+            result ++= lvalueGen(snd).dropRight(1)
+            result += Push(List(Reg(8)))
+            result += Pop(List(Reg(9)))
+            result ++= rvalueGen(rvalue)
+            result += Store(Reg(8), RegOffset(Reg(9), Immediate(0)))
+            result
           case _ => ListBuffer()
         }
       case _if@If(cond, trueStat, falseStat) =>
