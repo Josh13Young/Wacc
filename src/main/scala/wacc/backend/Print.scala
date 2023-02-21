@@ -105,6 +105,22 @@ object Print {
     )
   }
 
+  def arrayLoadByte(): ListBuffer[Instruction] = {
+    ListBuffer(
+      Label("array_load_b"),
+      Push(List(LinkRegister())),
+      Compare(Reg(10), Immediate(0)),
+      MoveCond("lt", Reg(1), Reg(10)),
+      BranchLinkWithCond("lt", "bounds_error"),
+      Load(LinkRegister(), RegOffset(Reg(3), Immediate(-4))),
+      Compare(Reg(10), LinkRegister()),
+      MoveCond("ge", Reg(1), Reg(10)),
+      BranchLinkWithCond("ge", "bounds_error"),
+      LoadRegSignedByte(Reg(3), RegOffsetReg(Reg(3), Reg(10))),
+      Pop(List(ProgramCounter()))
+    )
+  }
+
   def arrayStore(): ListBuffer[Instruction] = {
     ListBuffer(
       Label("array_store"),

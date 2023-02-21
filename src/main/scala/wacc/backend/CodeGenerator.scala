@@ -9,6 +9,7 @@ import wacc.backend.Translator.translate
 import wacc.frontend.STType._
 import wacc.frontend.SymbolTable
 
+import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 
 object CodeGenerator {
@@ -63,6 +64,22 @@ object CodeGenerator {
             result += Load(Reg(3), getVar(ident.name).get)
             if (isCharArray) result += BranchLink("array_store_b")
             else result += BranchLink("array_store")
+            result
+          case fst@FstElem(_) =>
+            val result = ListBuffer[Instruction]()
+            result ++= lvalueGen(fst).dropRight(1)
+            result += Push(List(Reg(8)))
+            result += Pop(List(Reg(9)))
+            result ++= rvalueGen(rvalue)
+            result += Store(Reg(8), RegOffset(Reg(9), Immediate(0)))
+            result
+          case snd@SndElem(_) =>
+            val result = ListBuffer[Instruction]()
+            result ++= lvalueGen(snd).dropRight(1)
+            result += Push(List(Reg(8)))
+            result += Pop(List(Reg(9)))
+            result ++= rvalueGen(rvalue)
+            result += Store(Reg(8), RegOffset(Reg(9), Immediate(0)))
             result
           case _ => ListBuffer()
         }
@@ -220,11 +237,67 @@ object CodeGenerator {
     rv match {
       case expr: Expr => exprGen(expr, 8)
       case ar@ArrayLiter(_) => arrayLiterGen(ar)
-      case NewPair(_, _) => ListBuffer()
-      case FstElem(_) => ListBuffer()
-      case SndElem(_) => ListBuffer()
+      case NewPair(e1, e2) =>
+        val result = ListBuffer[Instruction]()
+        // fst pair elem
+        result ++= newPairElemGen(e1)
+        // snd pair elem
+        result ++= newPairElemGen(e2)
+        // pair
+        result += Move(Reg(0), Immediate(8))
+        result += BranchLink("malloc")
+        result += Move(Reg(12), Reg(0))
+        result += Pop(List(Reg(8)))
+        result += Store(Reg(8), RegOffset(Reg(12), Immediate(4)))
+        result += Pop(List(Reg(8)))
+        result += Store(Reg(8), RegOffset(Reg(12), Immediate(0)))
+        result += Move(Reg(8), Reg(12))
+        result
+      case fst@FstElem(_) => lvalueGen(fst)
+      case snd@ SndElem(_) => lvalueGen(snd)
       case Call(_, _) => ListBuffer()
     }
+  }
+
+  private def newPairElemGen(e: Expr): ListBuffer[Instruction] = {
+    val result = ListBuffer[Instruction]()
+    e match {
+      case CharLiter(_) | BoolLiter(_) =>
+        result += Move(Reg(0), Immediate(1))
+        result += BranchLink("malloc")
+        result += Move(Reg(12), Reg(0))
+        result ++= exprGen(e, 8)
+        result += Store(Reg(8), RegOffset(Reg(12), Immediate(0)))
+        result += Move(Reg(8), Reg(12))
+        result += Push(List(Reg(8)))
+      case _ =>
+        result += Move(Reg(0), Immediate(4))
+        result += BranchLink("malloc")
+        result += Move(Reg(12), Reg(0))
+        result ++= exprGen(e, 8)
+        result += Store(Reg(8), RegOffset(Reg(12), Immediate(0)))
+        result += Move(Reg(8), Reg(12))
+        result += Push(List(Reg(8)))
+    }
+    result
+  }
+
+  private def lvalueGen(lv: Lvalue): ListBuffer[Instruction] = {
+    val result = ListBuffer[Instruction]()
+    lv match {
+      case Ident(name) =>
+        result += Load(Reg(8), getVar(name).get)
+      case FstElem(lvalue) =>
+        result ++= lvalueGen(lvalue)
+        result += Load(Reg(8), RegOffset(Reg(8), Immediate(0)))
+        result += Load(Reg(8), RegOffset(Reg(8), Immediate(0)))
+      case SndElem(lvalue) =>
+        result ++= lvalueGen(lvalue)
+        result += Load(Reg(8), RegOffset(Reg(8), Immediate(4)))
+        result += Load(Reg(8), RegOffset(Reg(8), Immediate(0)))
+      case _ =>
+    }
+    result
   }
 
   private def arrayLiterGen(array: ArrayLiter): ListBuffer[Instruction] = {
@@ -276,15 +349,20 @@ object CodeGenerator {
   }
 
   private def arrayElemGen(array: ArrayElem): ListBuffer[Instruction] = {
-    nonMainFunc += ("array_load" -> arrayLoad())
     nonMainFunc += ("bounds_error" -> boundsError())
     val result = ListBuffer[Instruction]()
+    var label = "array_load"
+    if (arrayElemSizeHelper(currST.lookupAll(array.ident.name).get._1)) {
+      label = "array_load_b"
+      nonMainFunc += (label -> arrayLoadByte())
+    } else
+      nonMainFunc += (label -> arrayLoad())
     result += Move(Reg(12), StackPointer())
     result ++= exprGen(array.exprList.head, 10)
     result += Load(Reg(8), getVar(array.ident.name).get)
     result += Push(List(Reg(3)))
     result += Move(Reg(3), Reg(8))
-    result += BranchLink("array_load")
+    result += BranchLink(label)
     result += Move(Reg(8), Reg(3))
     result += Pop(List(Reg(3)))
     for (i <- array.exprList.indices.tail) {
@@ -293,11 +371,21 @@ object CodeGenerator {
       result += Pop(List(Reg(8)))
       result += Push(List(Reg(3)))
       result += Move(Reg(3), Reg(8))
-      result += BranchLink("array_load")
+      result += BranchLink(label)
       result += Move(Reg(8), Reg(3))
       result += Pop(List(Reg(3)))
     }
     result
+  }
+
+  @tailrec
+  private def arrayElemSizeHelper(t: TypeST): Boolean = {
+    t match {
+      case ArrayST(IntST()) | ArrayST(StringST()) => false
+      case ArrayST(CharST()) | ArrayST(BoolST()) => true
+      case ArrayST(t) => arrayElemSizeHelper(t)
+      case _ => false
+    }
   }
 
   private def exprGen(expr: Expr, reg: Int): ListBuffer[Instruction] = {
