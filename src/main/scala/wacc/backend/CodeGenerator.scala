@@ -67,17 +67,13 @@ object CodeGenerator {
             result
           case fst@FstElem(_) =>
             val result = ListBuffer[Instruction]()
-            result ++= lvalueGen(fst).dropRight(1)
-            result += Push(List(Reg(8)))
-            result += Pop(List(Reg(9)))
+            result ++= pairStore(fst)
             result ++= rvalueGen(rvalue)
             result += Store(Reg(8), RegOffset(Reg(9), Immediate(0)))
             result
           case snd@SndElem(_) =>
             val result = ListBuffer[Instruction]()
-            result ++= lvalueGen(snd).dropRight(1)
-            result += Push(List(Reg(8)))
-            result += Pop(List(Reg(9)))
+            result ++= pairStore(snd)
             result ++= rvalueGen(rvalue)
             result += Store(Reg(8), RegOffset(Reg(9), Immediate(0)))
             result
@@ -231,6 +227,50 @@ object CodeGenerator {
                 ListBuffer(BranchLink("read_char"), Store(Reg(0), getVar(name).get))
               case _ => ListBuffer()
             }
+          case fst@FstElem(f) =>
+            val fstGen = lvalueGen(fst)
+            fstGen += Move(Reg(0), Reg(8))
+            f match {
+              case Ident(name) =>
+                currST.lookupAll(name).get._1 match {
+                  case PairST(IntST(), _) =>
+                    nonMainFunc += ("read_int" -> readInt())
+                    fstGen += BranchLink("read_int")
+                    fstGen ++= pairStore(fst)
+                    fstGen += Move(Reg(8), Reg(12))
+                    fstGen += Store(Reg(8), RegOffset(Reg(9), Immediate(0)))
+                  case PairST(CharST(), _) =>
+                    nonMainFunc += ("read_char" -> readChar())
+                    fstGen += BranchLink("read_char")
+                    fstGen ++= pairStore(fst)
+                    fstGen += Move(Reg(8), Reg(12))
+                    fstGen += Store(Reg(8), RegOffset(Reg(9), Immediate(0)))
+                  case _ => ListBuffer()
+                }
+              case _ => ListBuffer()
+            }
+          case snd@SndElem(s) =>
+            val sndGen = lvalueGen(snd)
+            sndGen += Move(Reg(0), Reg(8))
+            s match {
+              case Ident(name) =>
+                currST.lookupAll(name).get._1 match {
+                  case PairST(IntST(), _) =>
+                    nonMainFunc += ("read_int" -> readInt())
+                    sndGen += BranchLink("read_int")
+                    sndGen ++= pairStore(snd)
+                    sndGen += Move(Reg(8), Reg(12))
+                    sndGen += Store(Reg(8), RegOffset(Reg(9), Immediate(0)))
+                  case PairST(CharST(), _) =>
+                    nonMainFunc += ("read_char" -> readChar())
+                    sndGen += BranchLink("read_char")
+                    sndGen ++= pairStore(snd)
+                    sndGen += Move(Reg(8), Reg(12))
+                    sndGen += Store(Reg(8), RegOffset(Reg(9), Immediate(0)))
+                  case _ => ListBuffer()
+                }
+              case _ => ListBuffer()
+            }
           case _ => ListBuffer()
         }
       case Free(expr) =>
@@ -276,6 +316,14 @@ object CodeGenerator {
       case snd@ SndElem(_) => lvalueGen(snd)
       case Call(_, _) => ListBuffer()
     }
+  }
+
+  private def pairStore(lv: Lvalue): ListBuffer[Instruction] = {
+    val result = ListBuffer[Instruction]()
+    result ++= lvalueGen(lv).dropRight(1)
+    result += Push(List(Reg(8)))
+    result += Pop(List(Reg(9)))
+    result
   }
 
   private def newPairElemGen(e: Expr): ListBuffer[Instruction] = {
