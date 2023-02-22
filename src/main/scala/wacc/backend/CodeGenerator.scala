@@ -216,37 +216,23 @@ object CodeGenerator {
       case Read(expr) =>
         expr match {
           case Ident(name) =>
-            currST.lookupAll(name).get._1 match {
-              case IntST() =>
-                println("read int")
-                nonMainFunc += ("read_int" -> readInt())
-                ListBuffer(BranchLink("read_int"), Store(Reg(0), getVar(name).get))
-              case CharST() =>
-                println("read char")
-                nonMainFunc += ("read_char" -> readChar())
-                ListBuffer(BranchLink("read_char"), Store(Reg(0), getVar(name).get))
-              case _ => ListBuffer()
-            }
+            val result = readTypeHelper(currST.lookupAll(name).get._1)
+            if (result.nonEmpty)
+              result ++= ListBuffer(Store(Reg(0), getVar(name).get))
+            result
           case fst@FstElem(f) =>
             val fstGen = lvalueGen(fst)
             fstGen += Move(Reg(0), Reg(8))
             f match {
               case Ident(name) =>
-                currST.lookupAll(name).get._1 match {
-                  case PairST(IntST(), _) =>
-                    nonMainFunc += ("read_int" -> readInt())
-                    fstGen += BranchLink("read_int")
-                    fstGen ++= pairStore(fst)
-                    fstGen += Move(Reg(8), Reg(12))
-                    fstGen += Store(Reg(8), RegOffset(Reg(9), Immediate(0)))
-                  case PairST(CharST(), _) =>
-                    nonMainFunc += ("read_char" -> readChar())
-                    fstGen += BranchLink("read_char")
-                    fstGen ++= pairStore(fst)
-                    fstGen += Move(Reg(8), Reg(12))
-                    fstGen += Store(Reg(8), RegOffset(Reg(9), Immediate(0)))
-                  case _ => ListBuffer()
+                val result = readTypeHelper(currST.lookupAll(name).get._1)
+                if (result.nonEmpty) {
+                  fstGen ++= result
+                  fstGen ++= pairStore(fst)
+                  fstGen += Move(Reg(8), Reg(12))
+                  fstGen += Store(Reg(8), RegOffset(Reg(9), Immediate(0)))
                 }
+                fstGen
               case _ => ListBuffer()
             }
           case snd@SndElem(s) =>
@@ -254,21 +240,14 @@ object CodeGenerator {
             sndGen += Move(Reg(0), Reg(8))
             s match {
               case Ident(name) =>
-                currST.lookupAll(name).get._1 match {
-                  case PairST(IntST(), _) =>
-                    nonMainFunc += ("read_int" -> readInt())
-                    sndGen += BranchLink("read_int")
-                    sndGen ++= pairStore(snd)
-                    sndGen += Move(Reg(8), Reg(12))
-                    sndGen += Store(Reg(8), RegOffset(Reg(9), Immediate(0)))
-                  case PairST(CharST(), _) =>
-                    nonMainFunc += ("read_char" -> readChar())
-                    sndGen += BranchLink("read_char")
-                    sndGen ++= pairStore(snd)
-                    sndGen += Move(Reg(8), Reg(12))
-                    sndGen += Store(Reg(8), RegOffset(Reg(9), Immediate(0)))
-                  case _ => ListBuffer()
+                val result = readTypeHelper(currST.lookupAll(name).get._1)
+                if (result.nonEmpty) {
+                  sndGen ++= result
+                  sndGen ++= pairStore(snd)
+                  sndGen += Move(Reg(8), Reg(12))
+                  sndGen += Store(Reg(8), RegOffset(Reg(9), Immediate(0)))
                 }
+                sndGen
               case _ => ListBuffer()
             }
           case _ => ListBuffer()
@@ -288,6 +267,18 @@ object CodeGenerator {
             }
           case _ => ListBuffer()
         }
+      case _ => ListBuffer()
+    }
+  }
+
+  private def readTypeHelper(t: TypeST): ListBuffer[Instruction] = {
+    t match {
+      case IntST() | PairST(IntST(), _) | PairST(_, IntST()) =>
+        nonMainFunc += ("read_int" -> readInt())
+        ListBuffer(BranchLink("read_int"))
+      case CharST() | PairST(CharST(), _) | PairST(_, CharST()) =>
+        nonMainFunc += ("read_char" -> readChar())
+        ListBuffer(BranchLink("read_char"))
       case _ => ListBuffer()
     }
   }
@@ -313,7 +304,7 @@ object CodeGenerator {
         result += Move(Reg(8), Reg(12))
         result
       case fst@FstElem(_) => lvalueGen(fst)
-      case snd@ SndElem(_) => lvalueGen(snd)
+      case snd@SndElem(_) => lvalueGen(snd)
       case Call(_, _) => ListBuffer()
     }
   }
@@ -331,21 +322,15 @@ object CodeGenerator {
     e match {
       case CharLiter(_) | BoolLiter(_) =>
         result += Move(Reg(0), Immediate(1))
-        result += BranchLink("malloc")
-        result += Move(Reg(12), Reg(0))
-        result ++= exprGen(e, 8)
-        result += Store(Reg(8), RegOffset(Reg(12), Immediate(0)))
-        result += Move(Reg(8), Reg(12))
-        result += Push(List(Reg(8)))
       case _ =>
         result += Move(Reg(0), Immediate(4))
-        result += BranchLink("malloc")
-        result += Move(Reg(12), Reg(0))
-        result ++= exprGen(e, 8)
-        result += Store(Reg(8), RegOffset(Reg(12), Immediate(0)))
-        result += Move(Reg(8), Reg(12))
-        result += Push(List(Reg(8)))
     }
+    result += BranchLink("malloc")
+    result += Move(Reg(12), Reg(0))
+    result ++= exprGen(e, 8)
+    result += Store(Reg(8), RegOffset(Reg(12), Immediate(0)))
+    result += Move(Reg(8), Reg(12))
+    result += Push(List(Reg(8)))
     result
   }
 
@@ -375,13 +360,9 @@ object CodeGenerator {
   private def arrayLiterGen(array: ArrayLiter): ListBuffer[Instruction] = {
     val result = ListBuffer[Instruction]()
     array.arrayType match {
-      case IntST() | StringST() | PairST(_,_) =>
+      case IntST() | StringST() | PairST(_, _) =>
         result += Move(Reg(0), Immediate((array.exprList.length + 1) * 4))
-        result += BranchLink("malloc")
-        result += Move(Reg(12), Reg(0))
-        result += AddInstr(Reg(12), Reg(12), Immediate(4))
-        result += Load(Reg(9), ImmediateJump(Immediate(array.exprList.length)))
-        result += Store(Reg(9), RegOffset(Reg(12), Immediate(-4))) // length
+        result ++= arrayLiterSizeHelper(array.exprList.length)
         for (i <- array.exprList.indices) {
           result ++= exprGen(array.exprList(i), 8)
           result += Store(Reg(8), RegOffset(Reg(12), Immediate(i * 4)))
@@ -389,11 +370,7 @@ object CodeGenerator {
         result += Move(Reg(8), Reg(12))
       case CharST() | BoolST() =>
         result += Move(Reg(0), Immediate(array.exprList.length + 4))
-        result += BranchLink("malloc")
-        result += Move(Reg(12), Reg(0))
-        result += AddInstr(Reg(12), Reg(12), Immediate(4))
-        result += Load(Reg(9), ImmediateJump(Immediate(array.exprList.length)))
-        result += Store(Reg(9), RegOffset(Reg(12), Immediate(-4))) // length
+        result ++= arrayLiterSizeHelper(array.exprList.length)
         for (i <- array.exprList.indices) {
           result ++= exprGen(array.exprList(i), 8)
           result += StoreRegByte(Reg(8), RegOffset(Reg(12), Immediate(i)))
@@ -401,11 +378,7 @@ object CodeGenerator {
         result += Move(Reg(8), Reg(12))
       case ArrayST(IntST()) =>
         result += Move(Reg(0), Immediate((array.exprList.length + 1) * 4))
-        result += BranchLink("malloc")
-        result += Move(Reg(12), Reg(0))
-        result += AddInstr(Reg(12), Reg(12), Immediate(4))
-        result += Load(Reg(9), ImmediateJump(Immediate(array.exprList.length)))
-        result += Store(Reg(9), RegOffset(Reg(12), Immediate(-4))) // length
+        result ++= arrayLiterSizeHelper(array.exprList.length)
         for (i <- array.exprList.indices) {
           array.exprList(i) match {
             case Ident(name) =>
@@ -418,6 +391,16 @@ object CodeGenerator {
       case _ =>
     }
     result
+  }
+
+  private def arrayLiterSizeHelper(length: Int): ListBuffer[Instruction] = {
+    ListBuffer(
+      BranchLink("malloc"),
+      Move(Reg(12), Reg(0)),
+      AddInstr(Reg(12), Reg(12), Immediate(4)),
+      Load(Reg(9), ImmediateJump(Immediate(length))),
+      Store(Reg(9), RegOffset(Reg(12), Immediate(-4))) // length
+    )
   }
 
   private def arrayElemGen(array: ArrayElem): ListBuffer[Instruction] = {
@@ -453,7 +436,7 @@ object CodeGenerator {
   @tailrec
   private def arrayElemSizeHelper(t: TypeST): Boolean = {
     t match {
-      case ArrayST(IntST()) | ArrayST(StringST()) | ArrayST(PairST(_ ,_))=> false
+      case ArrayST(IntST()) | ArrayST(StringST()) | ArrayST(PairST(_, _)) => false
       case ArrayST(CharST()) | ArrayST(BoolST()) => true
       case ArrayST(t) => arrayElemSizeHelper(t)
       case _ => false
