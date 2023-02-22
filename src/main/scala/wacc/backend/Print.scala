@@ -89,6 +89,22 @@ object Print {
     )
   }
 
+  def freePair(): ListBuffer[Instruction] = {
+    ListBuffer(
+      Label("free_pair"),
+      Push(List(LinkRegister())),
+      Move(Reg(8), Reg(0)),
+      Compare(Reg(8), Immediate(0)),
+      BranchLinkWithCond("eq", "null_error"),
+      Load(Reg(0), RegOffset(Reg(8), Immediate(0))),
+      BranchLink("free"),
+      Load(Reg(0), RegOffset(Reg(8), Immediate(4))),
+      Move(Reg(0), Reg(8)),
+      BranchLink("free"),
+      Pop(List(ProgramCounter()))
+    )
+  }
+
   def arrayLoad(): ListBuffer[Instruction] = {
     ListBuffer(
       Label("array_load"),
