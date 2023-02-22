@@ -413,6 +413,7 @@ object CodeGenerator {
       case BoolLiter(value) =>
         ListBuffer(Move(Reg(reg), Immediate(if (value) 1 else 0)))
       case a@ArrayElem(_, _) => arrayElemGen(a)
+      case PairLiter() => ListBuffer(Move(Reg(8), Immediate(0)))
       case Not(expr) =>
         val not = ListBuffer(Xor(Reg(reg), Reg(reg), Immediate(1)))
         exprGen(expr, reg) ++ not
