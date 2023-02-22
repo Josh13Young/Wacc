@@ -360,7 +360,7 @@ object CodeGenerator {
   private def arrayLiterGen(array: ArrayLiter): ListBuffer[Instruction] = {
     val result = ListBuffer[Instruction]()
     array.arrayType match {
-      case IntST() | StringST() | PairST(_, _) =>
+      case IntST() | StringST() | PairST(_, _) | AnyST() =>
         result += Move(Reg(0), Immediate((array.exprList.length + 1) * 4))
         result ++= arrayLiterSizeHelper(array.exprList.length)
         for (i <- array.exprList.indices) {
