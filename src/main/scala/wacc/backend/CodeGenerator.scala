@@ -233,6 +233,21 @@ object CodeGenerator {
             }
           case _ => ListBuffer()
         }
+      case Free(expr) =>
+        expr match {
+          case Ident(name) =>
+            currST.lookupAll(name).get._1 match {
+              case PairST(_, _) =>
+                nonMainFunc += ("free_pair" -> freePair())
+                nonMainFunc += ("null_error" -> nullError())
+                nonMainFunc += ("print_str" -> printString())
+                val freeGen = exprGen(expr, 8) ++ ListBuffer(Move(Reg(0), Reg(8)))
+                val free = ListBuffer(BranchLink("free_pair"))
+                freeGen ++ free
+              case _ => ListBuffer()
+            }
+          case _ => ListBuffer()
+        }
       case _ => ListBuffer()
     }
   }
