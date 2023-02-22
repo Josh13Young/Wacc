@@ -148,6 +148,10 @@ object CodeGenerator {
             val print = ListBuffer(BranchLink("print_bool"))
             nonMainFunc += ("print_bool" -> printBool())
             printGen ++ print
+          case PairLiter() =>
+            val print = ListBuffer(BranchLink("print_addr"))
+            nonMainFunc += ("print_addr" -> printAddr())
+            printGen ++ print
           case Add(_, _) | Mul(_, _) | Div(_, _) | Sub(_, _) | Mod(_, _) | Neg(_) | Ord(_) | Len(_) =>
             val print = ListBuffer(BranchLink("print_int"))
             nonMainFunc += ("print_int" -> printInt())
@@ -286,7 +290,11 @@ object CodeGenerator {
     val result = ListBuffer[Instruction]()
     lv match {
       case Ident(name) =>
+        nonMainFunc += ("null_error" -> nullError())
+        nonMainFunc += ("print_str" -> printString())
         result += Load(Reg(8), getVar(name).get)
+        result += Compare(Reg(8), Immediate(0))
+        result += BranchLinkWithCond("eq", "null_error")
       case FstElem(lvalue) =>
         result ++= lvalueGen(lvalue)
         result += Load(Reg(8), RegOffset(Reg(8), Immediate(0)))

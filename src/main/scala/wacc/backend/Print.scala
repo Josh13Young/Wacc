@@ -185,6 +185,16 @@ object Print {
     )
   }
 
+  def nullError(): ListBuffer[Instruction] = {
+    ListBuffer(
+      Label("null_error"),
+      Load(Reg(0), LabelJump(addStrFun("fatal error: null pointer"))),
+      BranchLink("print_str"),
+      Move(Reg(0), Immediate(255)),
+      BranchLink("exit")
+    )
+  }
+
   def printBool(): ListBuffer[Instruction] = {
     ListBuffer(
       Label("print_bool"),
