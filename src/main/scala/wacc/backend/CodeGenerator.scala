@@ -452,7 +452,7 @@ object CodeGenerator {
         ListBuffer(Load(Reg(reg), ImmediateJump(Immediate(value))))
       case StrLiter(value) =>
         // assembly doesn't like " in strings, must be escaped
-        val label = addStrFun(value.replace("\"", "\\\""))
+        val label = addStrFun(value.replace("\"", "\\\"").replace("\n", "\\n"))
         ListBuffer(Load(Reg(reg), LabelJump(label)))
       case CharLiter(value) =>
         ListBuffer(Move(Reg(reg), Immediate(value.toInt)))
