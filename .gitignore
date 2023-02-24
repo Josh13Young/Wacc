@@ -1,6 +1,7 @@
 #ignore generated binary files and auto-generated ANTLR code
 bin
 src/antlr
+temp
 
 #ignore generated jar and assembly files
 *.jar
