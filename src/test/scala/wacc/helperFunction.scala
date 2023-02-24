@@ -8,7 +8,7 @@ import wacc.backend.CodeGenerator
 import wacc.backend.CodeGenerator.{generate, generateString}
 import wacc.frontend.{SymbolTable, parser}
 
-import java.io.{File, PrintWriter}
+import java.io.{ByteArrayOutputStream, File, PrintWriter}
 import scala.sys.process._
 
 object helperFunction extends AnyFlatSpec {
@@ -96,8 +96,11 @@ object helperFunction extends AnyFlatSpec {
           pw.write(code)
           pw.close()
           s"arm-linux-gnueabi-gcc -o temp -mcpu=arm1176jzf-s -mtune=arm1176jzf-s temp.s".!
-          val exitCode = s"qemu-arm -L /usr/arm-linux-gnueabi/ temp".!
-          (exitCode, s"qemu-arm -L /usr/arm-linux-gnueabi/ temp".!!)
+          val outputStream = new ByteArrayOutputStream
+          // see https://stackoverflow.com/questions/216894/get-an-outputstream-into-a-string
+          val exitCode = (s"qemu-arm -L /usr/arm-linux-gnueabi/ temp" #> outputStream).!
+          val output = outputStream.toString
+          (exitCode, output)
         } else {
           (200, "ERROR")
         }
