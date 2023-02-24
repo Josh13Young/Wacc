@@ -98,4 +98,13 @@ object helperFunction extends AnyFlatSpec {
         "ERROR"
     }
   }
+
+  def assemblyRunFolder(dir: String): Unit = {
+    val files = getListOfFiles(dir)
+    for (file <- files) {
+      val inputList = getInputList(file)
+      val output = assemblyRunner(inputList)
+      output shouldBe getExpectedOutput(inputList)
+    }
+  }
 }
