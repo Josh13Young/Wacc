@@ -12,7 +12,7 @@ import java.io.{File, PrintWriter}
 import scala.language.postfixOps
 import sys.process._
 
-class Code_Gen_Test extends AnyFlatSpec {
+class CodeGenTest extends AnyFlatSpec {
 
   "test" should "succeed" in {
     val testlist = "wacc_examples/valid/expressions"
@@ -23,7 +23,7 @@ class Code_Gen_Test extends AnyFlatSpec {
     val output = helper(file)
 
     println(output)
-    output shouldBe "false true false"
+    output shouldBe "false\ntrue\nfalse\n"
 
   }
 
