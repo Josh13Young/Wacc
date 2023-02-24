@@ -71,8 +71,8 @@ object helperFunction extends AnyFlatSpec {
     inputList
   }
 
-  def getExpectedOutput(inputList: List[String]): List[String] = {
-    inputList.dropWhile(!_.startsWith("# Output:")).drop(1).takeWhile(_.nonEmpty).map(_.drop(2))
+  def getExpectedOutput(inputList: List[String]): String = {
+    inputList.dropWhile(!_.startsWith("# Output:")).drop(1).takeWhile(_.nonEmpty).map(_.drop(2)).mkString("\n")
   }
 
   def assemblyRunner(inputList: List[String]): String = {
