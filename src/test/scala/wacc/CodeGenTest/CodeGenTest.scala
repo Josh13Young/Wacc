@@ -14,20 +14,23 @@ import sys.process._
 
 class CodeGenTest extends AnyFlatSpec {
 
-  "test" should "succeed" in {
-    val testlist = "wacc_examples/valid/expressions"
-    val files = getListOfFiles(testlist)
-
-    val file = files.head
-
-    val output = helper(file)
+  "andExpr" should "succeed and print correct output" in {
+    val file = new File("wacc_examples/valid/expressions/andExpr.wacc")
+    val output = assemblyRunner(file)
 
     println(output)
     output shouldBe "false\ntrue\nfalse\n"
-
   }
 
-  private def helper(file: File): String = {
+  "andOverOrExpr" should "succeed and print correct output" in {
+    val file = new File("wacc_examples/valid/expressions/andOverOrExpr.wacc")
+    val output = assemblyRunner(file)
+
+    println(output)
+    output shouldBe "true\nfalse\n"
+  }
+
+  private def assemblyRunner(file: File): String = {
     val source = scala.io.Source.fromFile(file)
     val inputList = try source.getLines().toList finally source.close()
     val input = inputList.mkString("\n")
@@ -58,21 +61,6 @@ class CodeGenTest extends AnyFlatSpec {
         // Should throw error if parser failed
         return "";
     }
-  }
-
-  def getListOfFiles(dir: String): List[File] = {
-    val d = new File(dir)
-    if (d.exists && d.isDirectory) {
-      d.listFiles.filter(_.isFile).toList
-    } else {
-      List[File]()
-    }
-  }
-
-  def getInput(file: File): String = {
-    val source = scala.io.Source.fromFile(file)
-    val input = try source.getLines().toList.mkString("\n") finally source.close()
-    input
   }
 
 }
