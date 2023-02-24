@@ -9,7 +9,6 @@ import wacc.backend.CodeGenerator.{generate, generateString}
 import wacc.frontend.{SymbolTable, parser}
 
 import java.io.{File, PrintWriter}
-import scala.language.postfixOps
 import sys.process._
 
 object helperFunction extends AnyFlatSpec {
@@ -81,16 +80,14 @@ object helperFunction extends AnyFlatSpec {
           val pw = new PrintWriter("temp.s")
           pw.write(code)
           pw.close()
-
-          val output = ("sh test.sh" !!)
-          output
+	  s"arm-linux-gnueabi-gcc -o temp -mcpu=arm1176jzf-s -mtune=arm1176jzf-s temp.s".!
+          s"qemu-arm -L /usr/arm-linux-gnueabi/ temp".!!
         } else {
-          return "ERROR"
+          "ERROR"
         }
-
       case Failure(msg) =>
         // Should throw error if parser failed
-        return "ERROR";
+        "ERROR"
     }
   }
 
