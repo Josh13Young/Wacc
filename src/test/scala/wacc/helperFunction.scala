@@ -8,8 +8,8 @@ import wacc.backend.CodeGenerator
 import wacc.backend.CodeGenerator.{generate, generateString}
 import wacc.frontend.{SymbolTable, parser}
 
-import java.io.{File, PrintWriter}
-import sys.process._
+import java.io.{ByteArrayOutputStream, File, PrintWriter}
+import scala.sys.process._
 
 object helperFunction extends AnyFlatSpec {
 
@@ -65,9 +65,24 @@ object helperFunction extends AnyFlatSpec {
     }
   }
 
-  def assemblyRunner(file: File): String = {
+  def getInputList(file: File): List[String] = {
     val source = scala.io.Source.fromFile(file)
     val inputList = try source.getLines().toList finally source.close()
+    inputList
+  }
+
+  def getExpectedOutput(inputList: List[String]): String = {
+    inputList.dropWhile(!_.startsWith("# Output:")).drop(1).takeWhile(_.nonEmpty).map(_.drop(2)).mkString("\n")
+  }
+
+  def getExpectedExitValue(inputList: List[String]): Option[Int] = {
+    inputList.indexOf("# Exit:") match {
+      case -1 => None
+      case x => Some(inputList(x + 1).drop(2).toInt)
+    }
+  }
+
+  def assemblyRunner(inputList: List[String]): (Int, String) = {
     val input = inputList.mkString("\n")
     parser.parser.parse(input) match {
       case Success(x) =>
@@ -80,15 +95,32 @@ object helperFunction extends AnyFlatSpec {
           val pw = new PrintWriter("temp.s")
           pw.write(code)
           pw.close()
-	  s"arm-linux-gnueabi-gcc -o temp -mcpu=arm1176jzf-s -mtune=arm1176jzf-s temp.s".!
-          s"qemu-arm -L /usr/arm-linux-gnueabi/ temp".!!
+          s"arm-linux-gnueabi-gcc -o temp -mcpu=arm1176jzf-s -mtune=arm1176jzf-s temp.s".!
+          val outputStream = new ByteArrayOutputStream
+          // see https://stackoverflow.com/questions/216894/get-an-outputstream-into-a-string
+          val exitCode = (s"qemu-arm -L /usr/arm-linux-gnueabi/ temp" #> outputStream).!
+          val output = outputStream.toString
+          (exitCode, output)
         } else {
-          "ERROR"
+          (200, "ERROR")
         }
-      case Failure(msg) =>
+      case Failure(_) =>
         // Should throw error if parser failed
-        "ERROR"
+        (100, "ERROR")
     }
   }
 
+  def assemblyRunFolder(dir: String): Unit = {
+    val files = getListOfFiles(dir)
+    for (file <- files) {
+      val inputList = getInputList(file)
+      val output = assemblyRunner(inputList)
+      val expectedExitValue =
+        getExpectedExitValue(inputList) match {
+          case Some(x) => x
+          case None => 0
+        }
+      output shouldBe(expectedExitValue, getExpectedOutput(inputList))
+    }
+  }
 }
