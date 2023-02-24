@@ -37,4 +37,13 @@ error-test:
   script: 
     - sbt "testOnly wacc.errorTest"
 
+codegen-test:
+  tags:
+    - group32
+  stage: build
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  script:
+    - sbt "testOnly wacc.CodeGenTest"
+
 
