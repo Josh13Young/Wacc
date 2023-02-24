@@ -82,7 +82,7 @@ object helperFunction extends AnyFlatSpec {
     }
   }
 
-  def assemblyRunner(inputList: List[String]): (Int,String) = {
+  def assemblyRunner(inputList: List[String]): (Int, String) = {
     val input = inputList.mkString("\n")
     parser.parser.parse(input) match {
       case Success(x) =>
@@ -96,8 +96,8 @@ object helperFunction extends AnyFlatSpec {
           pw.write(code)
           pw.close()
           s"arm-linux-gnueabi-gcc -o temp -mcpu=arm1176jzf-s -mtune=arm1176jzf-s temp.s".!
-          val exitCode = s"qemu-arm -L /usr/arm-linux-gnueabi/ temp > out".!
-          (exitCode, getInput(new File("out")))
+          val exitCode = s"qemu-arm -L /usr/arm-linux-gnueabi/ temp".!
+          (exitCode, s"qemu-arm -L /usr/arm-linux-gnueabi/ temp".!!)
         } else {
           (200, "ERROR")
         }
@@ -112,8 +112,12 @@ object helperFunction extends AnyFlatSpec {
     for (file <- files) {
       val inputList = getInputList(file)
       val output = assemblyRunner(inputList)
-      val expectedExitValue = getExpectedExitValue(inputList)
-      (expectedExitValue,output) shouldBe getExpectedOutput(inputList)
+      val expectedExitValue =
+        getExpectedExitValue(inputList) match {
+          case Some(x) => x
+          case None => 0
+        }
+      output shouldBe(expectedExitValue, getExpectedOutput(inputList))
     }
   }
 }

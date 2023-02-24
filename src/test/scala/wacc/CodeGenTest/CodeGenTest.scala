@@ -12,7 +12,11 @@ class CodeGenTest extends AnyFlatSpec {
     val file = new File("wacc_examples/valid/expressions/andExpr.wacc")
     val inputList = getInputList(file)
     val output = assemblyRunner(inputList)
-    val expectedExitValue = getExpectedExitValue(inputList)
-    (expectedExitValue, output) shouldBe getExpectedOutput(inputList)
+    val expectedExitValue =
+      getExpectedExitValue(inputList) match {
+        case Some(x) => x
+        case None => 0
+      }
+    output shouldBe(expectedExitValue, getExpectedOutput(inputList))
   }
 }
