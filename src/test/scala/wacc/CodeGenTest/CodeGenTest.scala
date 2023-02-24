@@ -112,6 +112,27 @@ class CodeGenTest extends AnyFlatSpec {
     output shouldBe "Correct\n"
   }
 
+  "lessCharExpr" should "succeed and print correct output" in {
+    val file = new File("wacc_examples/valid/expressions/lessCharExpr.wacc")
+    val output = assemblyRunner(file)
+
+    output shouldBe "true\nfalse\n"
+  }
+
+  "lessEqExpr" should "succeed and print correct output" in {
+    val file = new File("wacc_examples/valid/expressions/lessEqExpr.wacc")
+    val output = assemblyRunner(file)
+
+    output shouldBe "true\nfalse\ntrue\n"
+  }
+
+  "lessExpr" should "succeed and print correct output" in {
+    val file = new File("wacc_examples/valid/expressions/lessExpr.wacc")
+    val output = assemblyRunner(file)
+
+    output shouldBe "true\nfalse\n"
+  }
+
   private def assemblyRunner(file: File): String = {
     val source = scala.io.Source.fromFile(file)
     val inputList = try source.getLines().toList finally source.close()
