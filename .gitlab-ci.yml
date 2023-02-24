@@ -9,33 +9,32 @@ build-job:
   script:
     - sbt compile
 
+build-vm:
+  tags:
+    - group32
+  stage: build
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  script:
+    - sbt compile
+
 parser-test-job:
   stage: test
   script:
     - sbt "testOnly wacc.ParserTest"
-
-parser-basic-test:
-  stage: test
-  script:
     - sbt "testOnly wacc.basicTest"
-
-parser-advanced-test:
-  stage: test
-  script:
     - sbt "testOnly wacc.functionTest"
     - sbt "testOnly wacc.arrayTest"
     - sbt "testOnly wacc.pairTest"
+    - sbt "testOnly wacc.arraySemanticTest"
+    - sbt "testOnly wacc.exitTest"
+    - sbt "testOnly wacc.IOTest"
+    - sbt "testOnly wacc.multipleTest"
+    - sbt "testOnly wacc.readTest"
 
 error-test:
   stage: test
   script: 
     - sbt "testOnly wacc.errorTest"
 
-semantic-test:
-  stage: test
-  script:
-    - sbt "testOnly wacc.arraySemanticTest"
-    - sbt "testOnly wacc.exitTest"
-    - sbt "testOnly wacc.IOTest"
-    - sbt "testOnly wacc.multipleTest"
-    - sbt "testOnly wacc.readTest"
+
