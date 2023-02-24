@@ -9,7 +9,7 @@ import wacc.backend.CodeGenerator.{generate, generateString}
 import wacc.frontend.{SymbolTable, parser}
 
 import java.io.{File, PrintWriter}
-import sys.process._
+import scala.sys.process._
 
 object helperFunction extends AnyFlatSpec {
 
@@ -65,9 +65,17 @@ object helperFunction extends AnyFlatSpec {
     }
   }
 
-  def assemblyRunner(file: File): String = {
+  def getInputList(file: File): List[String] = {
     val source = scala.io.Source.fromFile(file)
     val inputList = try source.getLines().toList finally source.close()
+    inputList
+  }
+
+  def getExpectedOutput(inputList: List[String]): List[String] = {
+    inputList.dropWhile(!_.startsWith("# Output:")).drop(1).takeWhile(_.nonEmpty).map(_.drop(2))
+  }
+
+  def assemblyRunner(inputList: List[String]): String = {
     val input = inputList.mkString("\n")
     parser.parser.parse(input) match {
       case Success(x) =>
@@ -80,15 +88,14 @@ object helperFunction extends AnyFlatSpec {
           val pw = new PrintWriter("temp.s")
           pw.write(code)
           pw.close()
-	  s"arm-linux-gnueabi-gcc -o temp -mcpu=arm1176jzf-s -mtune=arm1176jzf-s temp.s".!
+          s"arm-linux-gnueabi-gcc -o temp -mcpu=arm1176jzf-s -mtune=arm1176jzf-s temp.s".!
           s"qemu-arm -L /usr/arm-linux-gnueabi/ temp".!!
         } else {
           "ERROR"
         }
-      case Failure(msg) =>
+      case Failure(_) =>
         // Should throw error if parser failed
         "ERROR"
     }
   }
-
 }
