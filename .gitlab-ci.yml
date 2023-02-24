@@ -40,7 +40,7 @@ error-test:
 codegen-test:
   tags:
     - group32
-  stage: build
+  stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
   script:
