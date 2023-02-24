@@ -1,1 +1,0 @@
-/wacc_examples/refEmulate temp.s < /dev/null | tee ./test.out

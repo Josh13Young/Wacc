@@ -19,17 +19,15 @@ class Code_Gen_Test extends AnyFlatSpec {
     val files = getListOfFiles(testlist)
 
     val file = files.head
-    println(file)
-
 
     val output = helper(file)
+
     println(output)
-    1 shouldBe(1)
+    output shouldBe "false true false"
 
   }
 
   private def helper(file: File): String = {
-    var output = ""
     val source = scala.io.Source.fromFile(file)
     val inputList = try source.getLines().toList finally source.close()
     val input = inputList.mkString("\n")
@@ -39,16 +37,13 @@ class Code_Gen_Test extends AnyFlatSpec {
         seb.program = inputList
         val st = new SymbolTable(None)
         if (x.check(st)(seb)) {
-          println("Program is semantically correct")
           CodeGenerator.st = st
           val code = generateString(generate(x))
           val pw = new PrintWriter("temp.s")
           pw.write(code)
           pw.close()
 
-          println(">>>>>>>>>>>>>>>")
-          //val output = ("./src/test/scala/wacc/CodeGenTest/test.sh" !!)
-          println("<<<<<<<<<<<<<<")
+          val output = ("sh test.sh" !!)
           output
         } else {
           seb.printAll()
