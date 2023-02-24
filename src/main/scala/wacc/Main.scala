@@ -21,7 +21,7 @@ object Main {
         val st = new SymbolTable(None)
         if (x.check(st)(seb)) {
           println("Program is semantically correct")
-          CodeGenerator.st = st
+          CodeGenerator.currST = st
           val code = generateString(generate(x))
           val fileName = args.head.split("/").last.split("\\.").head
           val pw = new PrintWriter(fileName + ".s")
