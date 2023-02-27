@@ -295,11 +295,16 @@ object CodeGenerator {
         val result = exprGen(expr, 0)
         var currStackSize = getStackSize
         val clone = getStackClone
+        var needPopPC = false
         while (clone.size > funcStackIniSize) {
+          needPopPC = true
           result ++= removeFrameClone(clone)
           currStackSize -= 1
         }
-        result ++ ListBuffer(Pop(List(ProgramCounter())))
+        if (needPopPC)
+          result ++= ListBuffer(Pop(List(ProgramCounter())))
+        else
+          result
       case _ => ListBuffer()
     }
   }
