@@ -10,6 +10,7 @@ import wacc.frontend.STType._
 import wacc.frontend.SymbolTable
 
 import scala.annotation.tailrec
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 object CodeGenerator {
@@ -19,9 +20,30 @@ object CodeGenerator {
   }
 
   private var nonMainFunc: Map[String, ListBuffer[Instruction]] = Map()
+  private var functions: List[Func] = List()
+  private var generatedFuncs: mutable.Set[String] = mutable.Set()
 
   var currST: SymbolTable = _
   private var labelCnt = 0
+
+  private def generateFunc(func: Func): ListBuffer[Instruction] = {
+    currST = func.symbolTable
+    println("Generating function: " + func.ident.name)
+    println(currST)
+    val stackSetUp = addFrame(currST, true)
+    val funcStart = ListBuffer(
+      Label("wacc_" + func.ident.name),
+      Push(List(LinkRegister()))
+    )
+    val eval = func.stat.map(s => generate(s))
+    val funcEnd = ListBuffer(
+      Pop(List(ProgramCounter())),
+      Directive("ltorg")
+    )
+    nonMainFunc += ("wacc_" + func.ident.name -> (funcStart ++ stackSetUp ++ eval.flatten ++ removeFrame() ++ funcEnd))
+    currST = currST.parentTable.get
+    ListBuffer()
+  }
 
   def generate(ast: ASTNode): ListBuffer[Instruction] = {
     val mainStart = ListBuffer(
@@ -36,7 +58,8 @@ object CodeGenerator {
 
     ast match {
       case Program(functions, stat) =>
-        val stackSetUp = addFrame(currST)
+        val stackSetUp = addFrame(currST, false)
+        this.functions = functions
         val statGen = stat.map(s => generate(s))
         mainStart ++ stackSetUp ++ statGen.flatten ++ removeFrame() ++ mainEnd ++
           nonMainFunc.values.flatten ++
@@ -84,12 +107,12 @@ object CodeGenerator {
         val contLabel = ".L" + (labelCnt + 1)
         labelCnt += 2
         val condGen = exprGen(cond, 8)
-        val falseStack = addFrame(_if.falseSymbolTable)
+        val falseStack = addFrame(_if.falseSymbolTable, false)
         currST = _if.falseSymbolTable
         // the parent symbol table of "if" (set when checking semantics) should be the old currST before this assignment
         val falseGen = falseStat.map(s => generate(s))
         val falseRemove = removeFrame()
-        val trueStack = addFrame(_if.trueSymbolTable)
+        val trueStack = addFrame(_if.trueSymbolTable, false)
         currST = _if.trueSymbolTable
         val trueGen = trueStat.map(s => generate(s))
         val trueRemove = removeFrame()
@@ -105,7 +128,7 @@ object CodeGenerator {
         labelCnt += 2
         val condGen = exprGen(cond, 8)
         currST = w.symbolTable
-        val whileStack = addFrame(w.symbolTable)
+        val whileStack = addFrame(w.symbolTable, false)
         val statGen = stat.map(s => generate(s))
         val whileRemove = removeFrame()
         currST = w.symbolTable.parentTable.get
@@ -115,7 +138,7 @@ object CodeGenerator {
           ListBuffer(Compare(Reg(8), Immediate(1)), Branch("eq", Label(loopLabel))) ++
           ListBuffer(Move(Reg(0), Immediate(0)))
       case bgn@BeginStat(stat) =>
-        val stackSetUp = addFrame(bgn.symbolTable)
+        val stackSetUp = addFrame(bgn.symbolTable, false)
         currST = bgn.symbolTable
         val statGen = stat.map(s => generate(s))
         currST = bgn.symbolTable.parentTable.get
@@ -267,6 +290,9 @@ object CodeGenerator {
             }
           case _ => ListBuffer()
         }
+      case Return(expr) =>
+        val result = exprGen(expr, 0)
+        result
       case _ => ListBuffer()
     }
   }
@@ -305,7 +331,28 @@ object CodeGenerator {
         result
       case fst@FstElem(_) => lvalueGen(fst)
       case snd@SndElem(_) => lvalueGen(snd)
-      case Call(_, _) => ListBuffer()
+      case call@Call(ident, exprList) =>
+        val result = ListBuffer[Instruction]()
+        println("call:\n" + call.symbolTable)
+        result ++= addFrame(call.symbolTable, false)
+        val callList = call.symbolTable.getDictNameType.map(_._1)
+        println("callList:\n" + callList)
+        for (e <- exprList.indices) {
+          result ++= exprGen(exprList(e), 8)
+          result ++= storeVar(callList(e), Reg(8))
+        }
+        if (!generatedFuncs.contains(ident.name)) {
+          generatedFuncs += ident.name
+          for (f <- functions) {
+            if (f.ident.name == ident.name) {
+              generateFunc(f)
+            }
+          }
+        }
+        result ++= ListBuffer(BranchLink("wacc_" + ident.name))
+        result ++= removeFrame()
+        result ++= ListBuffer(Move(Reg(8), Reg(0)))
+        result
     }
   }
 
