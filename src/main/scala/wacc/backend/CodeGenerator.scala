@@ -4,7 +4,7 @@ import wacc.ast._
 import wacc.backend.Instruction._
 import wacc.backend.Operand._
 import wacc.backend.Print._
-import wacc.backend.Stack.{addFrame, getVar, removeFrame, storeVar}
+import wacc.backend.Stack.{addFrame, getStackSize, getVar, removeFrame, removeFrameNoPop, storeVar}
 import wacc.backend.Translator.translate
 import wacc.frontend.STType._
 import wacc.frontend.SymbolTable
@@ -21,13 +21,15 @@ object CodeGenerator {
 
   private var nonMainFunc: Map[String, ListBuffer[Instruction]] = Map()
   private var functions: List[Func] = List()
-  private var generatedFuncs: mutable.Set[String] = mutable.Set()
+  private val generatedFuncs: mutable.Set[String] = mutable.Set()
+  private var funcStackIniSize: Int = 0
 
   var currST: SymbolTable = _
   private var labelCnt = 0
 
   private def generateFunc(func: Func): ListBuffer[Instruction] = {
     currST = func.symbolTable
+    funcStackIniSize = getStackSize
     println("Generating function: " + func.ident.name)
     println(currST)
     val stackSetUp = addFrame(currST, true)
@@ -41,7 +43,6 @@ object CodeGenerator {
       Directive("ltorg")
     )
     nonMainFunc += ("wacc_" + func.ident.name -> (funcStart ++ stackSetUp ++ eval.flatten ++ removeFrame() ++ funcEnd))
-    currST = currST.parentTable.get
     ListBuffer()
   }
 
@@ -291,8 +292,15 @@ object CodeGenerator {
           case _ => ListBuffer()
         }
       case Return(expr) =>
+        val st = currST
         val result = exprGen(expr, 0)
-        result
+        var currStackSize = getStackSize
+        while (currStackSize > funcStackIniSize) {
+          result ++= removeFrameNoPop()
+          currStackSize -= 1
+        }
+        currST = st
+        result ++ ListBuffer(Pop(List(ProgramCounter())))
       case _ => ListBuffer()
     }
   }

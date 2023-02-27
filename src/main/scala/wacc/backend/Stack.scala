@@ -72,6 +72,19 @@ object Stack {
     result
   }
 
+  def removeFrameNoPop(): ListBuffer[Instruction] = {
+    val sf = stack.top
+    var totalOffset = sf.pointer
+    val result: ListBuffer[Instruction] = ListBuffer()
+    while (totalOffset >= 900) {
+      result += AddInstr(StackPointer(), StackPointer(), Immediate(900))
+      totalOffset -= 900
+    }
+    result += AddInstr(StackPointer(), StackPointer(), Immediate(totalOffset))
+    result += Pop(List(FramePointer()))
+    result
+  }
+
   def getVar(name: String): Option[Operand] = {
     val stackClone = stack.clone()
     var fpOffset = 0
@@ -89,5 +102,9 @@ object Stack {
       }
     }
     None // Not reachable
+  }
+
+  def getStackSize: Int = {
+    stack.size
   }
 }
