@@ -72,8 +72,8 @@ object Stack {
     result
   }
 
-  def removeFrameNoPop(): ListBuffer[Instruction] = {
-    val sf = stack.top
+  def removeFrameClone(clone: mutable.Stack[StackFrame]): ListBuffer[Instruction] = {
+    val sf = clone.pop()
     var totalOffset = sf.pointer
     val result: ListBuffer[Instruction] = ListBuffer()
     while (totalOffset >= 900) {
@@ -102,6 +102,10 @@ object Stack {
       }
     }
     None // Not reachable
+  }
+
+  def getStackClone: mutable.Stack[StackFrame] = {
+    stack.clone()
   }
 
   def getStackSize: Int = {

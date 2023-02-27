@@ -4,7 +4,7 @@ import wacc.ast._
 import wacc.backend.Instruction._
 import wacc.backend.Operand._
 import wacc.backend.Print._
-import wacc.backend.Stack.{addFrame, getStackSize, getVar, removeFrame, removeFrameNoPop, storeVar}
+import wacc.backend.Stack._
 import wacc.backend.Translator.translate
 import wacc.frontend.STType._
 import wacc.frontend.SymbolTable
@@ -292,14 +292,13 @@ object CodeGenerator {
           case _ => ListBuffer()
         }
       case Return(expr) =>
-        val st = currST
         val result = exprGen(expr, 0)
         var currStackSize = getStackSize
-        while (currStackSize > funcStackIniSize) {
-          result ++= removeFrameNoPop()
+        val clone = getStackClone
+        while (clone.size > funcStackIniSize) {
+          result ++= removeFrameClone(clone)
           currStackSize -= 1
         }
-        currST = st
         result ++ ListBuffer(Pop(List(ProgramCounter())))
       case _ => ListBuffer()
     }
