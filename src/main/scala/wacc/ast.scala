@@ -86,6 +86,8 @@ object ast {
   // <FUNC>
 
   case class Func(t: Type, ident: Ident, vars: List[Param], stat: List[Stat])(val pos: (Int, Int)) extends ASTNode {
+    var symbolTable = new SymbolTable(None)
+
     def checkParam(st: SymbolTable)(implicit err: SemanticError): Option[SymbolTable] = {
       val query = st.lookup(ident.name + "()")
       if (query.isDefined) {
@@ -113,6 +115,8 @@ object ast {
       val st = funStatST.parentTable.get
       funStatST.isFunctionBody = true
       funStatST.functionReturnType = Some(t.getType(st))
+      st.addChildFunc(ident.name, funStatST)
+      symbolTable = funStatST
       if (!stat.forall(s => s.check(funStatST)))
         return false
       stat.last match {
@@ -579,6 +583,7 @@ object ast {
   object NewPair extends ParserBridgePos2[Expr, Expr, NewPair]
 
   case class Call(ident: Ident, argList: List[Expr])(val pos: (Int, Int)) extends Rvalue {
+    var symbolTable: SymbolTable = _
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       val query = st.locateST(ident.name + "()")
       if (query.isEmpty) {
@@ -605,6 +610,7 @@ object ast {
           result = false
         }
       }
+      symbolTable = funcST
       result
     }
 
