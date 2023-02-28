@@ -12,7 +12,7 @@ object Instruction {
 
   case class Move(dest: Register, operand: Operand) extends Instruction
 
-  case class MoveCond(cond: String, dest: Register, operand: Operand) extends Instruction
+  case class MoveCond(cond: Condition, dest: Register, operand: Operand) extends Instruction
 
   case class Label(name: String) extends Instruction // probably not belong here
 
@@ -47,4 +47,18 @@ object Instruction {
   case class Xor(dest: Register, operand1: Operand, operand2: Operand) extends Instruction
 
   case class RevSub(dest: Register, operand1: Operand, operand2: Operand) extends Instruction
+
+  sealed trait Condition
+
+  case object Greater extends Condition
+
+  case object GreaterEqual extends Condition
+
+  case object Less extends Condition
+
+  case object LessEqual extends Condition
+
+  case object Equal extends Condition
+
+  case object NotEqual extends Condition
 }

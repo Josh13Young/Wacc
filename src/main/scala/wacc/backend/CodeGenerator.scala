@@ -30,9 +30,7 @@ object CodeGenerator {
   private def generateFunc(func: Func): ListBuffer[Instruction] = {
     currST = func.symbolTable
     funcStackIniSize = getStackSize
-    println("Generating function: " + func.ident.name)
-    println(currST)
-    val stackSetUp = addFrame(currST, true)
+    val stackSetUp = addFrame(currST, isStack = true)
     val funcStart = ListBuffer(
       Label("wacc_" + func.ident.name),
       Push(List(LinkRegister()))
@@ -59,7 +57,7 @@ object CodeGenerator {
 
     ast match {
       case Program(functions, stat) =>
-        val stackSetUp = addFrame(currST, false)
+        val stackSetUp = addFrame(currST, isStack = false)
         this.functions = functions
         val statGen = stat.map(s => generate(s))
         mainStart ++ stackSetUp ++ statGen.flatten ++ removeFrame() ++ mainEnd ++
@@ -108,12 +106,12 @@ object CodeGenerator {
         val contLabel = ".L" + (labelCnt + 1)
         labelCnt += 2
         val condGen = exprGen(cond, 8)
-        val falseStack = addFrame(_if.falseSymbolTable, false)
+        val falseStack = addFrame(_if.falseSymbolTable, isStack = false)
         currST = _if.falseSymbolTable
         // the parent symbol table of "if" (set when checking semantics) should be the old currST before this assignment
         val falseGen = falseStat.map(s => generate(s))
         val falseRemove = removeFrame()
-        val trueStack = addFrame(_if.trueSymbolTable, false)
+        val trueStack = addFrame(_if.trueSymbolTable, isStack = false)
         currST = _if.trueSymbolTable
         val trueGen = trueStat.map(s => generate(s))
         val trueRemove = removeFrame()
@@ -129,7 +127,7 @@ object CodeGenerator {
         labelCnt += 2
         val condGen = exprGen(cond, 8)
         currST = w.symbolTable
-        val whileStack = addFrame(w.symbolTable, false)
+        val whileStack = addFrame(w.symbolTable, isStack = false)
         val statGen = stat.map(s => generate(s))
         val whileRemove = removeFrame()
         currST = w.symbolTable.parentTable.get
@@ -139,7 +137,7 @@ object CodeGenerator {
           ListBuffer(Compare(Reg(8), Immediate(1)), Branch("eq", Label(loopLabel))) ++
           ListBuffer(Move(Reg(0), Immediate(0)))
       case bgn@BeginStat(stat) =>
-        val stackSetUp = addFrame(bgn.symbolTable, false)
+        val stackSetUp = addFrame(bgn.symbolTable, isStack = false)
         currST = bgn.symbolTable
         val statGen = stat.map(s => generate(s))
         currST = bgn.symbolTable.parentTable.get
@@ -345,10 +343,8 @@ object CodeGenerator {
       case snd@SndElem(_) => lvalueGen(snd)
       case call@Call(ident, exprList) =>
         val result = ListBuffer[Instruction]()
-        println("call:\n" + call.symbolTable)
-        result ++= addFrame(call.symbolTable, false)
+        result ++= addFrame(call.symbolTable, isStack = false)
         val callList = call.symbolTable.getDictNameType.map(_._1)
-        println("callList:\n" + callList)
         for (e <- exprList.indices) {
           result ++= exprGen(exprList(e), 8)
           result ++= storeVar(callList(e), Reg(8))
@@ -575,23 +571,17 @@ object CodeGenerator {
         nonMainFunc += ("overflow_error" -> overflowError())
         binOpsGen(reg, expr1, expr2) ++ sub ++ overflow
       case GT(expr1, expr2) =>
-        val gt = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("gt", Reg(reg), Immediate(1)), MoveCond("le", Reg(reg), Immediate(0)))
-        binOpsGen(reg, expr1, expr2) ++ gt
+        binOpsGen(reg, expr1, expr2) ++ compareExprGen(Greater, LessEqual, reg)
       case GTE(expr1, expr2) =>
-        val gte = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("ge", Reg(reg), Immediate(1)), MoveCond("lt", Reg(reg), Immediate(0)))
-        binOpsGen(reg, expr1, expr2) ++ gte
+        binOpsGen(reg, expr1, expr2) ++ compareExprGen(GreaterEqual, Less, reg)
       case LT(expr1, expr2) =>
-        val lt = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("lt", Reg(reg), Immediate(1)), MoveCond("ge", Reg(reg), Immediate(0)))
-        binOpsGen(reg, expr1, expr2) ++ lt
+        binOpsGen(reg, expr1, expr2) ++ compareExprGen(Less, GreaterEqual, reg)
       case LTE(expr1, expr2) =>
-        val lte = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("le", Reg(reg), Immediate(1)), MoveCond("gt", Reg(reg), Immediate(0)))
-        binOpsGen(reg, expr1, expr2) ++ lte
+        binOpsGen(reg, expr1, expr2) ++ compareExprGen(LessEqual, Greater, reg)
       case EQ(expr1, expr2) =>
-        val eq = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("eq", Reg(reg), Immediate(1)), MoveCond("ne", Reg(reg), Immediate(0)))
-        binOpsGen(reg, expr1, expr2) ++ eq
+        binOpsGen(reg, expr1, expr2) ++ compareExprGen(Equal, NotEqual, reg)
       case NEQ(expr1, expr2) =>
-        val neq = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("ne", Reg(reg), Immediate(1)), MoveCond("eq", Reg(reg), Immediate(0)))
-        binOpsGen(reg, expr1, expr2) ++ neq
+        binOpsGen(reg, expr1, expr2) ++ compareExprGen(NotEqual, Equal, reg)
       case And(expr1, expr2) =>
         val and = ListBuffer(AndInstr(Reg(reg), Reg(reg), Reg(reg + 1)))
         binOpsGen(reg, expr1, expr2) ++ and
@@ -602,6 +592,15 @@ object CodeGenerator {
     }
   }
 
+  private def compareExprGen(cond1: Condition, cond2: Condition, reg: Int): ListBuffer[Instruction] = {
+    ListBuffer(
+      Compare(Reg(reg), Reg(reg + 1)),
+      MoveCond(cond1, Reg(reg), Immediate(1)),
+      MoveCond(cond2, Reg(reg), Immediate(0))
+    )
+  }
+
+  // template for expr binary operations
   private def binOpsGen(reg: Int, expr1: Expr, expr2: Expr): ListBuffer[Instruction] = {
     // expr1 -> reg, push reg, expr2 -> reg, reg + 1 = reg, pop reg
     val binGen = exprGen(expr1, reg) ++ ListBuffer(Push(List(Reg(reg)))) ++ exprGen(expr2, reg) ++ ListBuffer(Move(Reg(reg + 1), Reg(reg)), Pop(List(Reg(reg))))
