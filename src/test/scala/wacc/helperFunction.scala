@@ -142,7 +142,7 @@ object helperFunction extends AnyFlatSpec {
 
   def filterAddress(addr: String): String = {
     val newAddr = addr.replaceAll("0x[0-9a-z]{5} ", "#addrs# ")
-    val newnewAddr = newAddr.replaceAll("0x[0-9a-z]{5}\\s$", "#addrs#\n")
+    val newnewAddr = newAddr.replaceAll("0x[0-9a-z]{5}\n", "#addrs#\n")
     newnewAddr
   }
 }
