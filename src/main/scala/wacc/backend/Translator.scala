@@ -20,7 +20,8 @@ object Translator {
       case BranchLink(label) =>
         s"\tbl $label\n"
       case BranchLinkWithCond(cond, label) =>
-        s"\tbl$cond $label\n"
+        val condStr = translateCond(cond)
+        s"\tbl$condStr $label\n"
       case Directive(name) =>
         s".$name\n"
       case Load(dest, src) =>
@@ -30,7 +31,8 @@ object Translator {
       case Compare(reg, operand) =>
         s"\tcmp ${reg.toString}, ${operand.toString}\n"
       case Branch(cond, label) =>
-        s"\tb$cond ${label.name}\n"
+        val condStr = translateCond(cond)
+        s"\tb$condStr ${label.name}\n"
       case MulInstr(destLo, destHi, register1, register2) =>
         s"\tsmull ${destLo.toString}, ${destHi.toString}, ${register1.toString}, ${register2.toString}\n"
       case AddInstr(dest, operand1, operand2) =>
@@ -54,11 +56,13 @@ object Translator {
   }
 
   private def translateCond(cond: Condition): String = cond match {
-    case Greater => "gt"
+    case GreaterThan => "gt"
     case GreaterEqual => "ge"
-    case Less => "lt"
+    case LessThan => "lt"
     case LessEqual => "le"
     case Equal => "eq"
     case NotEqual => "ne"
+    case Overflow => "vs"
+    case Nothing => ""
   }
 }

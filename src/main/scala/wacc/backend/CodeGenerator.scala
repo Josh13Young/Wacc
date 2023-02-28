@@ -21,7 +21,7 @@ object CodeGenerator {
 
   private var nonMainFunc: Map[String, ListBuffer[Instruction]] = Map()
   private var functions: List[Func] = List()
-  private val generatedFuncs: mutable.Set[String] = mutable.Set()
+  private val generatedFunctions: mutable.Set[String] = mutable.Set()
   private var funcStackIniSize: Int = 0
 
   var currST: SymbolTable = _
@@ -116,9 +116,9 @@ object CodeGenerator {
         val trueGen = trueStat.map(s => generate(s))
         val trueRemove = removeFrame()
         currST = _if.trueSymbolTable.parentTable.get
-        condGen ++ ListBuffer(Compare(Reg(8), Immediate(1)), Branch("eq", Label(trueLabel))) ++
+        condGen ++ ListBuffer(Compare(Reg(8), Immediate(1)), Branch(Equal, Label(trueLabel))) ++
           falseStack ++ falseGen.flatten ++ falseRemove ++
-          ListBuffer(Branch("", Label(contLabel)), Label(trueLabel)) ++
+          ListBuffer(Branch(Nothing, Label(contLabel)), Label(trueLabel)) ++
           trueStack ++ trueGen.flatten ++ trueRemove ++
           ListBuffer(Label(contLabel)) ++ ListBuffer(Move(Reg(0), Immediate(0)))
       case w@While(cond, stat) =>
@@ -131,10 +131,10 @@ object CodeGenerator {
         val statGen = stat.map(s => generate(s))
         val whileRemove = removeFrame()
         currST = w.symbolTable.parentTable.get
-        ListBuffer(Branch("", Label(condLabel)), Label(loopLabel)) ++
+        ListBuffer(Branch(Nothing, Label(condLabel)), Label(loopLabel)) ++
           whileStack ++ statGen.flatten ++ whileRemove ++
           ListBuffer(Label(condLabel)) ++ condGen ++
-          ListBuffer(Compare(Reg(8), Immediate(1)), Branch("eq", Label(loopLabel))) ++
+          ListBuffer(Compare(Reg(8), Immediate(1)), Branch(Equal, Label(loopLabel))) ++
           ListBuffer(Move(Reg(0), Immediate(0)))
       case bgn@BeginStat(stat) =>
         val stackSetUp = addFrame(bgn.symbolTable, isStack = false)
@@ -349,8 +349,8 @@ object CodeGenerator {
           result ++= exprGen(exprList(e), 8)
           result ++= storeVar(callList(e), Reg(8))
         }
-        if (!generatedFuncs.contains(ident.name)) {
-          generatedFuncs += ident.name
+        if (!generatedFunctions.contains(ident.name)) {
+          generatedFunctions += ident.name
           for (f <- functions) {
             if (f.ident.name == ident.name) {
               generateFunc(f)
@@ -397,7 +397,7 @@ object CodeGenerator {
         nonMainFunc += ("print_str" -> printString())
         result += Load(Reg(8), getVar(name).get)
         result += Compare(Reg(8), Immediate(0))
-        result += BranchLinkWithCond("eq", "null_error")
+        result += BranchLinkWithCond(Equal, "null_error")
       case FstElem(lvalue) =>
         result ++= lvalueGen(lvalue)
         result += Load(Reg(8), RegOffset(Reg(8), Immediate(0)))
@@ -519,7 +519,7 @@ object CodeGenerator {
         val not = ListBuffer(Xor(Reg(reg), Reg(reg), Immediate(1)))
         exprGen(expr, reg) ++ not
       case Neg(expr) =>
-        val neg = ListBuffer(RevSub(Reg(reg), Reg(reg), Immediate(0)), BranchLinkWithCond("vs", "overflow_error"))
+        val neg = ListBuffer(RevSub(Reg(reg), Reg(reg), Immediate(0)), BranchLinkWithCond(Overflow, "overflow_error"))
         nonMainFunc += ("overflow_error" -> overflowError())
         nonMainFunc += ("print_str" -> printString()) // for printing error message
         exprGen(expr, reg) ++ neg
@@ -534,7 +534,7 @@ object CodeGenerator {
         val mul = ListBuffer(MulInstr(Reg(reg), Reg(reg + 1), Reg(reg), Reg(reg + 1)))
         val overflow = ListBuffer(
           Compare(Reg(reg + 1), Operand2(Reg(reg), "asr", Immediate(31))),
-          BranchLinkWithCond("ne", "overflow_error")
+          BranchLinkWithCond(NotEqual, "overflow_error")
         )
         nonMainFunc += ("overflow_error" -> overflowError())
         binOpsGen(reg, expr1, expr2) ++ mul ++ overflow
@@ -543,7 +543,7 @@ object CodeGenerator {
           Move(Reg(0), Reg(reg)),
           Move(Reg(1), Reg(reg + 1)),
           Compare(Reg(1), Immediate(0)),
-          BranchLinkWithCond("eq", "divide_by_zero_error"),
+          BranchLinkWithCond(Equal, "divide_by_zero_error"),
           BranchLink("__aeabi_idivmod"),
           Move(Reg(reg), Reg(0))
         )
@@ -554,7 +554,7 @@ object CodeGenerator {
           Move(Reg(0), Reg(reg)),
           Move(Reg(1), Reg(reg + 1)),
           Compare(Reg(1), Immediate(0)),
-          BranchLinkWithCond("eq", "divide_by_zero_error"),
+          BranchLinkWithCond(Equal, "divide_by_zero_error"),
           BranchLink("__aeabi_idivmod"),
           Move(Reg(reg), Reg(1))
         )
@@ -562,22 +562,22 @@ object CodeGenerator {
         binOpsGen(reg, expr1, expr2) ++ mod
       case Add(expr1, expr2) =>
         val add = ListBuffer(AddInstr(Reg(reg), Reg(reg), Reg(reg + 1)))
-        val overflow = ListBuffer(BranchLinkWithCond("vs", "overflow_error"))
+        val overflow = ListBuffer(BranchLinkWithCond(Overflow, "overflow_error"))
         nonMainFunc += ("overflow_error" -> overflowError())
         binOpsGen(reg, expr1, expr2) ++ add ++ overflow
       case Sub(expr1, expr2) =>
         val sub = ListBuffer(SubInstr(Reg(reg), Reg(reg), Reg(reg + 1)))
-        val overflow = ListBuffer(BranchLinkWithCond("vs", "overflow_error"))
+        val overflow = ListBuffer(BranchLinkWithCond(Overflow, "overflow_error"))
         nonMainFunc += ("overflow_error" -> overflowError())
         binOpsGen(reg, expr1, expr2) ++ sub ++ overflow
       case GT(expr1, expr2) =>
-        binOpsGen(reg, expr1, expr2) ++ compareExprGen(Greater, LessEqual, reg)
+        binOpsGen(reg, expr1, expr2) ++ compareExprGen(GreaterThan, LessEqual, reg)
       case GTE(expr1, expr2) =>
-        binOpsGen(reg, expr1, expr2) ++ compareExprGen(GreaterEqual, Less, reg)
+        binOpsGen(reg, expr1, expr2) ++ compareExprGen(GreaterEqual, LessThan, reg)
       case LT(expr1, expr2) =>
-        binOpsGen(reg, expr1, expr2) ++ compareExprGen(Less, GreaterEqual, reg)
+        binOpsGen(reg, expr1, expr2) ++ compareExprGen(LessThan, GreaterEqual, reg)
       case LTE(expr1, expr2) =>
-        binOpsGen(reg, expr1, expr2) ++ compareExprGen(LessEqual, Greater, reg)
+        binOpsGen(reg, expr1, expr2) ++ compareExprGen(LessEqual, GreaterThan, reg)
       case EQ(expr1, expr2) =>
         binOpsGen(reg, expr1, expr2) ++ compareExprGen(Equal, NotEqual, reg)
       case NEQ(expr1, expr2) =>

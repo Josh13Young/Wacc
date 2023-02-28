@@ -18,7 +18,7 @@ object Instruction {
 
   case class BranchLink(label: String) extends Instruction
 
-  case class BranchLinkWithCond(cond: String, label: String) extends Instruction
+  case class BranchLinkWithCond(cond: Condition, label: String) extends Instruction
 
   case class Directive(name: String) extends Instruction
 
@@ -28,7 +28,7 @@ object Instruction {
 
   case class Compare(reg: Register, operand: Operand) extends Instruction
 
-  case class Branch(cond: String, operand: Label) extends Instruction // todo change cond into enum
+  case class Branch(cond: Condition, operand: Label) extends Instruction
 
   case class MulInstr(destLo: Register, destHi: Register, register1: Register, register2: Register) extends Instruction
 
@@ -50,15 +50,19 @@ object Instruction {
 
   sealed trait Condition
 
-  case object Greater extends Condition
+  case object GreaterThan extends Condition
 
   case object GreaterEqual extends Condition
 
-  case object Less extends Condition
+  case object LessThan extends Condition
 
   case object LessEqual extends Condition
 
   case object Equal extends Condition
 
   case object NotEqual extends Condition
+
+  case object Overflow extends Condition
+
+  case object Nothing extends Condition
 }
