@@ -16,6 +16,7 @@ object Stack {
     val variableMap: mutable.Map[String, Operand] = scala.collection.mutable.Map[String, Operand]()
     val variableDefined: mutable.Set[String] = scala.collection.mutable.Set[String]()
     var pointer = 0
+    var isStack = false
   }
 
   private def addVar(name: String, t: TypeST, sf: StackFrame): Unit = {
@@ -51,14 +52,28 @@ object Stack {
     result
   }
 
-  def addFrame(st: SymbolTable): ListBuffer[Instruction] = {
+  def addFrame(st: SymbolTable, isStack: Boolean): ListBuffer[Instruction] = {
     val sf = new StackFrame
     stack.push(sf)
+    sf.isStack = isStack
     ListBuffer(Push(List(FramePointer()))) ++ addVarST(st, sf) ++ ListBuffer(Move(FramePointer(), StackPointer()))
   }
 
   def removeFrame(): ListBuffer[Instruction] = {
     val sf = stack.pop()
+    var totalOffset = sf.pointer
+    val result: ListBuffer[Instruction] = ListBuffer()
+    while (totalOffset >= 900) {
+      result += AddInstr(StackPointer(), StackPointer(), Immediate(900))
+      totalOffset -= 900
+    }
+    result += AddInstr(StackPointer(), StackPointer(), Immediate(totalOffset))
+    result += Pop(List(FramePointer()))
+    result
+  }
+
+  def removeFrameClone(clone: mutable.Stack[StackFrame]): ListBuffer[Instruction] = {
+    val sf = clone.pop()
     var totalOffset = sf.pointer
     val result: ListBuffer[Instruction] = ListBuffer()
     while (totalOffset >= 900) {
@@ -82,7 +97,18 @@ object Stack {
         }
       }
       fpOffset += sf.pointer + 4 // 4 for the poped fp
+      if (sf.isStack) {
+        fpOffset += 4
+      }
     }
     None // Not reachable
+  }
+
+  def getStackClone: mutable.Stack[StackFrame] = {
+    stack.clone()
+  }
+
+  def getStackSize: Int = {
+    stack.size
   }
 }
