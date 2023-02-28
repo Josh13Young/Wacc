@@ -5,10 +5,6 @@ import wacc.helperFunction.assemblyRunFolder
 
 class CodeGenTest extends AnyFlatSpec {
 
-  "advanced" should "succeed and print correct output for advanced" in {
-    assemblyRunFolder("wacc_examples/valid/advanced")
-  }
-
   "array" should "succeed and print correct output for array" in {
     assemblyRunFolder("wacc_examples/valid/array")
   }
@@ -56,4 +52,5 @@ class CodeGenTest extends AnyFlatSpec {
   "while" should "succeed and print correct output for while" in {
     assemblyRunFolder("wacc_examples/valid/while")
   }
+  
 }

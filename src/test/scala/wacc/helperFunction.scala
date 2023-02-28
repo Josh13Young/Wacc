@@ -10,6 +10,7 @@ import wacc.frontend.{SymbolTable, parser}
 
 import java.io.{ByteArrayOutputStream, File, PrintWriter}
 import scala.sys.process._
+import java.io.ByteArrayInputStream
 
 object helperFunction extends AnyFlatSpec {
 
@@ -75,6 +76,13 @@ object helperFunction extends AnyFlatSpec {
     inputList.dropWhile(!_.startsWith("# Output:")).drop(1).takeWhile(_.nonEmpty).map(_.drop(2)).mkString("\n")
   }
 
+  def getExpectedInput(inputList: List[String]): Option[String] = {
+    if (inputList.exists(_.startsWith("# Input")))
+      Some(inputList.dropWhile(!_.startsWith("# Input:")).head.replace("# Input: ", ""))
+    else
+      None
+  }
+
   def getExpectedExitValue(inputList: List[String]): Option[Int] = {
     inputList.indexOf("# Exit:") match {
       case -1 => None
@@ -97,8 +105,14 @@ object helperFunction extends AnyFlatSpec {
           pw.close()
           s"arm-linux-gnueabi-gcc -o temp -mcpu=arm1176jzf-s -mtune=arm1176jzf-s temp.s".!
           val outputStream = new ByteArrayOutputStream
+          val expectedInput = 
+            getExpectedInput(inputList) match {
+              case Some(x) => x
+              case None => ""
+            }
+          val inputStream = new ByteArrayInputStream(expectedInput.getBytes())   
           // see https://stackoverflow.com/questions/216894/get-an-outputstream-into-a-string
-          val exitCode = (s"qemu-arm -L /usr/arm-linux-gnueabi/ temp" #> outputStream).!
+          val exitCode = (s"qemu-arm -L /usr/arm-linux-gnueabi/ temp" #< inputStream #> outputStream).!
           val output = outputStream.toString
           (exitCode, output)
         } else {
