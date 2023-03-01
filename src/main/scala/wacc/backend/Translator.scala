@@ -15,11 +15,13 @@ object Translator {
       case Move(dest, src) =>
         s"\tmov ${dest.toString}, ${src.toString}\n"
       case MoveCond(cond, dest, operand) =>
-        s"\tmov$cond ${dest.toString}, ${operand.toString}\n"
+        val condStr = translateCond(cond)
+        s"\tmov$condStr ${dest.toString}, ${operand.toString}\n"
       case BranchLink(label) =>
         s"\tbl $label\n"
       case BranchLinkWithCond(cond, label) =>
-        s"\tbl$cond $label\n"
+        val condStr = translateCond(cond)
+        s"\tbl$condStr $label\n"
       case Directive(name) =>
         s".$name\n"
       case Load(dest, src) =>
@@ -29,7 +31,8 @@ object Translator {
       case Compare(reg, operand) =>
         s"\tcmp ${reg.toString}, ${operand.toString}\n"
       case Branch(cond, label) =>
-        s"\tb$cond ${label.name}\n"
+        val condStr = translateCond(cond)
+        s"\tb$condStr ${label.name}\n"
       case MulInstr(destLo, destHi, register1, register2) =>
         s"\tsmull ${destLo.toString}, ${destHi.toString}, ${register1.toString}, ${register2.toString}\n"
       case AddInstr(dest, operand1, operand2) =>
@@ -50,5 +53,16 @@ object Translator {
         s"\trsbs ${dest.toString}, ${operand1.toString}, ${operand2.toString}\n"
       case _ => ""
     }
+  }
+
+  private def translateCond(cond: Condition): String = cond match {
+    case GreaterThan => "gt"
+    case GreaterEqual => "ge"
+    case LessThan => "lt"
+    case LessEqual => "le"
+    case Equal => "eq"
+    case NotEqual => "ne"
+    case Overflow => "vs"
+    case Nothing => ""
   }
 }

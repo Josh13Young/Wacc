@@ -15,57 +15,47 @@ import scala.collection.mutable.ListBuffer
 
 object CodeGenerator {
 
+  // generate list of instructions into assembly as string
   def generateString(listBuffer: ListBuffer[Instruction]): String = {
     listBuffer.map(instr => translate(instr)).mkString ++ "\n"
   }
 
+  // segment of code that is not in global main
   private var nonMainFunc: Map[String, ListBuffer[Instruction]] = Map()
+  // functions defined in Begin, in ast form
   private var functions: List[Func] = List()
-  private val generatedFuncs: mutable.Set[String] = mutable.Set()
+  // functions that have been generated, to avoid recursive generation in call
+  private val generatedFunctions: mutable.Set[String] = mutable.Set()
+  // stack size when function is called, used for removing stack frame to the correct size
+  // initially set to 0, will be updated when function is generated
   private var funcStackIniSize: Int = 0
 
+  // current symbol table
   var currST: SymbolTable = _
+  // number of labels in the form of .L1, .L2, etc.
   private var labelCnt = 0
 
-  private def generateFunc(func: Func): ListBuffer[Instruction] = {
-    currST = func.symbolTable
-    funcStackIniSize = getStackSize
-    println("Generating function: " + func.ident.name)
-    println(currST)
-    val stackSetUp = addFrame(currST, true)
-    val funcStart = ListBuffer(
-      Label("wacc_" + func.ident.name),
-      Push(List(LinkRegister()))
-    )
-    val eval = func.stat.map(s => generate(s))
-    val funcEnd = ListBuffer(
-      Pop(List(ProgramCounter())),
-      Directive("ltorg")
-    )
-    nonMainFunc += ("wacc_" + func.ident.name -> (funcStart ++ stackSetUp ++ eval.flatten ++ removeFrame() ++ funcEnd))
-    ListBuffer()
-  }
-
+  // generate function for statement ast node
   def generate(ast: ASTNode): ListBuffer[Instruction] = {
-    val mainStart = ListBuffer(
-      Directive("global main"),
-      Label("main"),
-      Push(List(LinkRegister()))
-    )
-
-    val mainEnd = ListBuffer(
-      Move(Reg(0), Immediate(0)),
-      Pop(List(ProgramCounter())))
-
     ast match {
       case Program(functions, stat) =>
-        val stackSetUp = addFrame(currST, false)
+        val stackSetUp = addFrame(currST, isFuncStack = false)
+        // instead of generating functions here, store them and generate when it is called
         this.functions = functions
+        val mainStart = ListBuffer(
+          Directive("global main"),
+          Label("main"),
+          Push(List(LinkRegister()))
+        )
+        val mainEnd = ListBuffer(
+          Move(Reg(0), Immediate(0)),
+          Pop(List(ProgramCounter()))
+        )
         val statGen = stat.map(s => generate(s))
         mainStart ++ stackSetUp ++ statGen.flatten ++ removeFrame() ++ mainEnd ++
           nonMainFunc.values.flatten ++
-          ListBuffer(Directive("data")) ++ getPrintInstr ++
-          ListBuffer(Directive("text"))
+          // all stuff wrapped in .data and .text are here in one place
+          ListBuffer(Directive("data")) ++ getPrintInstr ++ ListBuffer(Directive("text"))
       case AssignNew(_, ident, rvalue) =>
         rvalueGen(rvalue) ++
           storeVar(ident.name, Reg(8)) ++
@@ -86,6 +76,7 @@ object CodeGenerator {
             result ++= exprGen(exprList.head, 10)
             result ++= rvalueGen(rvalue)
             result += Load(Reg(3), getVar(ident.name).get)
+            // array pointer in r3, index in r10, value in r8, same as in reference compiler
             if (isCharArray) result += BranchLink("array_store_b")
             else result += BranchLink("array_store")
             result
@@ -108,141 +99,56 @@ object CodeGenerator {
         val contLabel = ".L" + (labelCnt + 1)
         labelCnt += 2
         val condGen = exprGen(cond, 8)
-        val falseStack = addFrame(_if.falseSymbolTable, false)
+        val falseStack = addFrame(_if.falseSymbolTable, isFuncStack = false)
         currST = _if.falseSymbolTable
         // the parent symbol table of "if" (set when checking semantics) should be the old currST before this assignment
         val falseGen = falseStat.map(s => generate(s))
         val falseRemove = removeFrame()
-        val trueStack = addFrame(_if.trueSymbolTable, false)
+        val trueStack = addFrame(_if.trueSymbolTable, isFuncStack = false)
         currST = _if.trueSymbolTable
         val trueGen = trueStat.map(s => generate(s))
         val trueRemove = removeFrame()
         currST = _if.trueSymbolTable.parentTable.get
-        condGen ++ ListBuffer(Compare(Reg(8), Immediate(1)), Branch("eq", Label(trueLabel))) ++
+        condGen ++ ListBuffer(Compare(Reg(8), Immediate(1)), Branch(Equal, Label(trueLabel))) ++
           falseStack ++ falseGen.flatten ++ falseRemove ++
-          ListBuffer(Branch("", Label(contLabel)), Label(trueLabel)) ++
+          ListBuffer(Branch(Nothing, Label(contLabel)), Label(trueLabel)) ++
           trueStack ++ trueGen.flatten ++ trueRemove ++
-          ListBuffer(Label(contLabel)) ++ ListBuffer(Move(Reg(0), Immediate(0)))
+          ListBuffer(Label(contLabel), Move(Reg(0), Immediate(0)))
       case w@While(cond, stat) =>
         val condLabel = ".L" + labelCnt
         val loopLabel = ".L" + (labelCnt + 1)
         labelCnt += 2
         val condGen = exprGen(cond, 8)
         currST = w.symbolTable
-        val whileStack = addFrame(w.symbolTable, false)
+        val whileStack = addFrame(w.symbolTable, isFuncStack = false)
         val statGen = stat.map(s => generate(s))
         val whileRemove = removeFrame()
         currST = w.symbolTable.parentTable.get
-        ListBuffer(Branch("", Label(condLabel)), Label(loopLabel)) ++
+        ListBuffer(Branch(Nothing, Label(condLabel)), Label(loopLabel)) ++
           whileStack ++ statGen.flatten ++ whileRemove ++
           ListBuffer(Label(condLabel)) ++ condGen ++
-          ListBuffer(Compare(Reg(8), Immediate(1)), Branch("eq", Label(loopLabel))) ++
-          ListBuffer(Move(Reg(0), Immediate(0)))
+          ListBuffer(Compare(Reg(8), Immediate(1)), Branch(Equal, Label(loopLabel)), Move(Reg(0), Immediate(0)))
       case bgn@BeginStat(stat) =>
-        val stackSetUp = addFrame(bgn.symbolTable, false)
+        val stackSetUp = addFrame(bgn.symbolTable, isFuncStack = false)
         currST = bgn.symbolTable
         val statGen = stat.map(s => generate(s))
         currST = bgn.symbolTable.parentTable.get
         stackSetUp ++ statGen.flatten ++ removeFrame() ++ ListBuffer(Move(Reg(0), Immediate(0)))
       case Skip() => ListBuffer()
       case Exit(expr) =>
-        val exitGen = exprGen(expr, 8) ++ ListBuffer(Move(Reg(0), Reg(8)))
+        val exitGen = exprGen(expr, 8)
         val exit = ListBuffer(Move(Reg(0), Reg(8)), BranchLink("exit"))
         exitGen ++ exit
-      case Print(expr) =>
-        val printGen = exprGen(expr, 8) ++ ListBuffer(Move(Reg(0), Reg(8)))
-        expr match {
-          case IntLiter(_) =>
-            val print = ListBuffer(BranchLink("print_int"))
-            nonMainFunc += ("print_int" -> printInt())
-            printGen ++ print
-          case StrLiter(_) =>
-            val print = ListBuffer(BranchLink("print_str"))
-            nonMainFunc += ("print_str" -> printString())
-            printGen ++ print
-          case CharLiter(_) | Chr(_) =>
-            val print = ListBuffer(BranchLink("print_char"))
-            nonMainFunc += ("print_char" -> printChar())
-            printGen ++ print
-          case BoolLiter(_) =>
-            val print = ListBuffer(BranchLink("print_bool"))
-            nonMainFunc += ("print_bool" -> printBool())
-            printGen ++ print
-          case PairLiter() =>
-            val print = ListBuffer(BranchLink("print_addr"))
-            nonMainFunc += ("print_addr" -> printAddr())
-            printGen ++ print
-          case Add(_, _) | Mul(_, _) | Div(_, _) | Sub(_, _) | Mod(_, _) | Neg(_) | Ord(_) | Len(_) =>
-            val print = ListBuffer(BranchLink("print_int"))
-            nonMainFunc += ("print_int" -> printInt())
-            printGen ++ print
-          case GT(_, _) | GTE(_, _) | LT(_, _) | LTE(_, _) | EQ(_, _) | NEQ(_, _) =>
-            val print = ListBuffer(BranchLink("print_bool"))
-            nonMainFunc += ("print_bool" -> printBool())
-            printGen ++ print
-          case And(_, _) | Or(_, _) | Not(_) =>
-            val print = ListBuffer(BranchLink("print_bool"))
-            nonMainFunc += ("print_bool" -> printBool())
-            printGen ++ print
-          case ArrayElem(ident, _) =>
-            currST.lookupAll(ident.name).get._1 match {
-              case ArrayST(CharST()) =>
-                val print = ListBuffer(BranchLink("print_char"))
-                nonMainFunc += ("print_char" -> printChar())
-                printGen ++ print
-              case ArrayST(StringST()) =>
-                val print = ListBuffer(BranchLink("print_str"))
-                nonMainFunc += ("print_str" -> printString())
-                printGen ++ print
-              case ArrayST(BoolST()) =>
-                val print = ListBuffer(BranchLink("print_bool"))
-                nonMainFunc += ("print_bool" -> printBool())
-                printGen ++ print
-              case _ =>
-                val print = ListBuffer(BranchLink("print_int"))
-                nonMainFunc += ("print_int" -> printInt())
-                printGen ++ print
-            }
-          case Ident(a) =>
-            currST.lookupAll(a).get._1 match {
-              case IntST() =>
-                val print = ListBuffer(BranchLink("print_int"))
-                nonMainFunc += ("print_int" -> printInt())
-                printGen ++ print
-              case BoolST() =>
-                val print = ListBuffer(BranchLink("print_bool"))
-                nonMainFunc += ("print_bool" -> printBool())
-                printGen ++ print
-              case CharST() =>
-                val print = ListBuffer(BranchLink("print_char"))
-                nonMainFunc += ("print_char" -> printChar())
-                printGen ++ print
-              case StringST() =>
-                val print = ListBuffer(BranchLink("print_str"))
-                nonMainFunc += ("print_str" -> printString())
-                printGen ++ print
-              case ArrayST(CharST()) =>
-                val print = ListBuffer(BranchLink("print_str"))
-                nonMainFunc += ("print_str" -> printString())
-                printGen ++ print
-              case ArrayST(_) | PairST(_, _) =>
-                val print = ListBuffer(BranchLink("print_addr"))
-                nonMainFunc += ("print_addr" -> printAddr())
-                printGen ++ print
-              case _ => ListBuffer()
-            }
-          case _ => ListBuffer()
-        }
+      case Print(expr) => printGen(expr)
       case Println(expr) =>
-        val normalPrint = generate(Print(expr)(expr.pos))
         nonMainFunc += ("print_ln" -> printLn())
-        normalPrint ++ ListBuffer(BranchLink("print_ln"))
+        printGen(expr) ++ ListBuffer(BranchLink("print_ln"))
       case Read(expr) =>
         expr match {
           case Ident(name) =>
             val result = readTypeHelper(currST.lookupAll(name).get._1)
             if (result.nonEmpty)
-              result ++= ListBuffer(Store(Reg(0), getVar(name).get))
+              result += Store(Reg(0), getVar(name).get)
             result
           case fst@FstElem(f) =>
             val fstGen = lvalueGen(fst)
@@ -309,6 +215,77 @@ object CodeGenerator {
     }
   }
 
+  private def printGen(expr: Expr): ListBuffer[Instruction] = {
+    val res = ListBuffer[Instruction]()
+    res ++= exprGen(expr, 8)
+    res += Move(Reg(0), Reg(8))
+    expr match {
+      case IntLiter(_) =>
+        nonMainFunc += ("print_int" -> printInt())
+        res += BranchLink("print_int")
+      case StrLiter(_) =>
+        nonMainFunc += ("print_str" -> printString())
+        res += BranchLink("print_str")
+      case CharLiter(_) | Chr(_) =>
+        nonMainFunc += ("print_char" -> printChar())
+        res += BranchLink("print_char")
+      case BoolLiter(_) =>
+        nonMainFunc += ("print_bool" -> printBool())
+        res += BranchLink("print_bool")
+      case PairLiter() =>
+        nonMainFunc += ("print_addr" -> printAddr())
+        res += BranchLink("print_addr")
+      case Add(_, _) | Mul(_, _) | Div(_, _) | Sub(_, _) | Mod(_, _) | Neg(_) | Ord(_) | Len(_) =>
+        nonMainFunc += ("print_int" -> printInt())
+        res += BranchLink("print_int")
+      case GT(_, _) | GTE(_, _) | LT(_, _) | LTE(_, _) | EQ(_, _) | NEQ(_, _) =>
+        nonMainFunc += ("print_bool" -> printBool())
+        res += BranchLink("print_bool")
+      case And(_, _) | Or(_, _) | Not(_) =>
+        nonMainFunc += ("print_bool" -> printBool())
+        res += BranchLink("print_bool")
+      case ArrayElem(ident, _) =>
+        currST.lookupAll(ident.name).get._1 match {
+          case ArrayST(CharST()) =>
+            nonMainFunc += ("print_char" -> printChar())
+            res += BranchLink("print_char")
+          case ArrayST(StringST()) =>
+            nonMainFunc += ("print_str" -> printString())
+            res += BranchLink("print_str")
+          case ArrayST(BoolST()) =>
+            nonMainFunc += ("print_bool" -> printBool())
+            res += BranchLink("print_bool")
+          case _ =>
+            nonMainFunc += ("print_int" -> printInt())
+            res += BranchLink("print_int")
+        }
+      case Ident(name) =>
+        currST.lookupAll(name).get._1 match {
+          case IntST() =>
+            nonMainFunc += ("print_int" -> printInt())
+            res += BranchLink("print_int")
+          case CharST() =>
+            nonMainFunc += ("print_char" -> printChar())
+            res += BranchLink("print_char")
+          case StringST() =>
+            nonMainFunc += ("print_str" -> printString())
+            res += BranchLink("print_str")
+          case BoolST() =>
+            nonMainFunc += ("print_bool" -> printBool())
+            res += BranchLink("print_bool")
+          case ArrayST(CharST()) =>
+            nonMainFunc += ("print_str" -> printString())
+            res += BranchLink("print_str")
+          case PairST(_, _) | ArrayST(_) =>
+            nonMainFunc += ("print_addr" -> printAddr())
+            res += BranchLink("print_addr")
+          case _ =>
+        }
+      case _ =>
+    }
+    res
+  }
+
   private def readTypeHelper(t: TypeST): ListBuffer[Instruction] = {
     t match {
       case IntST() | PairST(IntST(), _) | PairST(_, IntST()) =>
@@ -345,16 +322,14 @@ object CodeGenerator {
       case snd@SndElem(_) => lvalueGen(snd)
       case call@Call(ident, exprList) =>
         val result = ListBuffer[Instruction]()
-        println("call:\n" + call.symbolTable)
-        result ++= addFrame(call.symbolTable, false)
+        result ++= addFrame(call.symbolTable, isFuncStack = false)
         val callList = call.symbolTable.getDictNameType.map(_._1)
-        println("callList:\n" + callList)
         for (e <- exprList.indices) {
           result ++= exprGen(exprList(e), 8)
           result ++= storeVar(callList(e), Reg(8))
         }
-        if (!generatedFuncs.contains(ident.name)) {
-          generatedFuncs += ident.name
+        if (!generatedFunctions.contains(ident.name)) {
+          generatedFunctions += ident.name
           for (f <- functions) {
             if (f.ident.name == ident.name) {
               generateFunc(f)
@@ -401,7 +376,7 @@ object CodeGenerator {
         nonMainFunc += ("print_str" -> printString())
         result += Load(Reg(8), getVar(name).get)
         result += Compare(Reg(8), Immediate(0))
-        result += BranchLinkWithCond("eq", "null_error")
+        result += BranchLinkWithCond(Equal, "null_error")
       case FstElem(lvalue) =>
         result ++= lvalueGen(lvalue)
         result += Load(Reg(8), RegOffset(Reg(8), Immediate(0)))
@@ -474,22 +449,24 @@ object CodeGenerator {
     result += Move(Reg(12), StackPointer())
     result ++= exprGen(array.exprList.head, 10)
     result += Load(Reg(8), getVar(array.ident.name).get)
-    result += Push(List(Reg(3)))
-    result += Move(Reg(3), Reg(8))
-    result += BranchLink(label)
-    result += Move(Reg(8), Reg(3))
-    result += Pop(List(Reg(3)))
+    result ++= arrayElemLoadHelper(label)
     for (i <- array.exprList.indices.tail) {
       result += Push(List(Reg(8)))
       result ++= exprGen(array.exprList(i), 10)
       result += Pop(List(Reg(8)))
-      result += Push(List(Reg(3)))
-      result += Move(Reg(3), Reg(8))
-      result += BranchLink(label)
-      result += Move(Reg(8), Reg(3))
-      result += Pop(List(Reg(3)))
+      result ++= arrayElemLoadHelper(label)
     }
     result
+  }
+
+  private def arrayElemLoadHelper(label: String): ListBuffer[Instruction] = {
+    ListBuffer(
+      Push(List(Reg(3))),
+      Move(Reg(3), Reg(8)),
+      BranchLink(label),
+      Move(Reg(8), Reg(3)),
+      Pop(List(Reg(3)))
+    )
   }
 
   @tailrec
@@ -500,6 +477,23 @@ object CodeGenerator {
       case ArrayST(t) => arrayElemSizeHelper(t)
       case _ => false
     }
+  }
+
+  private def generateFunc(func: Func): ListBuffer[Instruction] = {
+    currST = func.symbolTable
+    funcStackIniSize = getStackSize
+    val stackSetUp = addFrame(currST, isFuncStack = true)
+    val funcStart = ListBuffer(
+      Label("wacc_" + func.ident.name),
+      Push(List(LinkRegister()))
+    )
+    val eval = func.stat.map(s => generate(s))
+    val funcEnd = ListBuffer(
+      Pop(List(ProgramCounter())),
+      Directive("ltorg")
+    )
+    nonMainFunc += ("wacc_" + func.ident.name -> (funcStart ++ stackSetUp ++ eval.flatten ++ removeFrame() ++ funcEnd))
+    ListBuffer()
   }
 
   private def exprGen(expr: Expr, reg: Int): ListBuffer[Instruction] = {
@@ -523,7 +517,7 @@ object CodeGenerator {
         val not = ListBuffer(Xor(Reg(reg), Reg(reg), Immediate(1)))
         exprGen(expr, reg) ++ not
       case Neg(expr) =>
-        val neg = ListBuffer(RevSub(Reg(reg), Reg(reg), Immediate(0)), BranchLinkWithCond("vs", "overflow_error"))
+        val neg = ListBuffer(RevSub(Reg(reg), Reg(reg), Immediate(0)), BranchLinkWithCond(Overflow, "overflow_error"))
         nonMainFunc += ("overflow_error" -> overflowError())
         nonMainFunc += ("print_str" -> printString()) // for printing error message
         exprGen(expr, reg) ++ neg
@@ -538,7 +532,7 @@ object CodeGenerator {
         val mul = ListBuffer(MulInstr(Reg(reg), Reg(reg + 1), Reg(reg), Reg(reg + 1)))
         val overflow = ListBuffer(
           Compare(Reg(reg + 1), Operand2(Reg(reg), "asr", Immediate(31))),
-          BranchLinkWithCond("ne", "overflow_error")
+          BranchLinkWithCond(NotEqual, "overflow_error")
         )
         nonMainFunc += ("overflow_error" -> overflowError())
         binOpsGen(reg, expr1, expr2) ++ mul ++ overflow
@@ -547,7 +541,7 @@ object CodeGenerator {
           Move(Reg(0), Reg(reg)),
           Move(Reg(1), Reg(reg + 1)),
           Compare(Reg(1), Immediate(0)),
-          BranchLinkWithCond("eq", "divide_by_zero_error"),
+          BranchLinkWithCond(Equal, "divide_by_zero_error"),
           BranchLink("__aeabi_idivmod"),
           Move(Reg(reg), Reg(0))
         )
@@ -558,7 +552,7 @@ object CodeGenerator {
           Move(Reg(0), Reg(reg)),
           Move(Reg(1), Reg(reg + 1)),
           Compare(Reg(1), Immediate(0)),
-          BranchLinkWithCond("eq", "divide_by_zero_error"),
+          BranchLinkWithCond(Equal, "divide_by_zero_error"),
           BranchLink("__aeabi_idivmod"),
           Move(Reg(reg), Reg(1))
         )
@@ -566,32 +560,26 @@ object CodeGenerator {
         binOpsGen(reg, expr1, expr2) ++ mod
       case Add(expr1, expr2) =>
         val add = ListBuffer(AddInstr(Reg(reg), Reg(reg), Reg(reg + 1)))
-        val overflow = ListBuffer(BranchLinkWithCond("vs", "overflow_error"))
+        val overflow = ListBuffer(BranchLinkWithCond(Overflow, "overflow_error"))
         nonMainFunc += ("overflow_error" -> overflowError())
         binOpsGen(reg, expr1, expr2) ++ add ++ overflow
       case Sub(expr1, expr2) =>
         val sub = ListBuffer(SubInstr(Reg(reg), Reg(reg), Reg(reg + 1)))
-        val overflow = ListBuffer(BranchLinkWithCond("vs", "overflow_error"))
+        val overflow = ListBuffer(BranchLinkWithCond(Overflow, "overflow_error"))
         nonMainFunc += ("overflow_error" -> overflowError())
         binOpsGen(reg, expr1, expr2) ++ sub ++ overflow
       case GT(expr1, expr2) =>
-        val gt = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("gt", Reg(reg), Immediate(1)), MoveCond("le", Reg(reg), Immediate(0)))
-        binOpsGen(reg, expr1, expr2) ++ gt
+        binOpsGen(reg, expr1, expr2) ++ compareExprGen(GreaterThan, LessEqual, reg)
       case GTE(expr1, expr2) =>
-        val gte = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("ge", Reg(reg), Immediate(1)), MoveCond("lt", Reg(reg), Immediate(0)))
-        binOpsGen(reg, expr1, expr2) ++ gte
+        binOpsGen(reg, expr1, expr2) ++ compareExprGen(GreaterEqual, LessThan, reg)
       case LT(expr1, expr2) =>
-        val lt = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("lt", Reg(reg), Immediate(1)), MoveCond("ge", Reg(reg), Immediate(0)))
-        binOpsGen(reg, expr1, expr2) ++ lt
+        binOpsGen(reg, expr1, expr2) ++ compareExprGen(LessThan, GreaterEqual, reg)
       case LTE(expr1, expr2) =>
-        val lte = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("le", Reg(reg), Immediate(1)), MoveCond("gt", Reg(reg), Immediate(0)))
-        binOpsGen(reg, expr1, expr2) ++ lte
+        binOpsGen(reg, expr1, expr2) ++ compareExprGen(LessEqual, GreaterThan, reg)
       case EQ(expr1, expr2) =>
-        val eq = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("eq", Reg(reg), Immediate(1)), MoveCond("ne", Reg(reg), Immediate(0)))
-        binOpsGen(reg, expr1, expr2) ++ eq
+        binOpsGen(reg, expr1, expr2) ++ compareExprGen(Equal, NotEqual, reg)
       case NEQ(expr1, expr2) =>
-        val neq = ListBuffer(Compare(Reg(reg), Reg(reg + 1)), MoveCond("ne", Reg(reg), Immediate(1)), MoveCond("eq", Reg(reg), Immediate(0)))
-        binOpsGen(reg, expr1, expr2) ++ neq
+        binOpsGen(reg, expr1, expr2) ++ compareExprGen(NotEqual, Equal, reg)
       case And(expr1, expr2) =>
         val and = ListBuffer(AndInstr(Reg(reg), Reg(reg), Reg(reg + 1)))
         binOpsGen(reg, expr1, expr2) ++ and
@@ -602,6 +590,15 @@ object CodeGenerator {
     }
   }
 
+  private def compareExprGen(cond1: Condition, cond2: Condition, reg: Int): ListBuffer[Instruction] = {
+    ListBuffer(
+      Compare(Reg(reg), Reg(reg + 1)),
+      MoveCond(cond1, Reg(reg), Immediate(1)),
+      MoveCond(cond2, Reg(reg), Immediate(0))
+    )
+  }
+
+  // template for expr binary operations
   private def binOpsGen(reg: Int, expr1: Expr, expr2: Expr): ListBuffer[Instruction] = {
     // expr1 -> reg, push reg, expr2 -> reg, reg + 1 = reg, pop reg
     val binGen = exprGen(expr1, reg) ++ ListBuffer(Push(List(Reg(reg)))) ++ exprGen(expr2, reg) ++ ListBuffer(Move(Reg(reg + 1), Reg(reg)), Pop(List(Reg(reg))))
