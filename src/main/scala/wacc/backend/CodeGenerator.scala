@@ -15,22 +15,32 @@ import scala.collection.mutable.ListBuffer
 
 object CodeGenerator {
 
+  // generate list of instructions into assembly as string
   def generateString(listBuffer: ListBuffer[Instruction]): String = {
     listBuffer.map(instr => translate(instr)).mkString ++ "\n"
   }
 
+  // segment of code that is not in global main
   private var nonMainFunc: Map[String, ListBuffer[Instruction]] = Map()
+  // functions defined in Begin, in ast form
   private var functions: List[Func] = List()
+  // functions that have been generated, to avoid recursive generation in call
   private val generatedFunctions: mutable.Set[String] = mutable.Set()
+  // stack size when function is called, used for removing stack frame to the correct size
+  // initially set to 0, will be updated when function is generated
   private var funcStackIniSize: Int = 0
 
+  // current symbol table
   var currST: SymbolTable = _
+  // number of labels in the form of .L1, .L2, etc.
   private var labelCnt = 0
 
+  // generate function for statement ast node
   def generate(ast: ASTNode): ListBuffer[Instruction] = {
     ast match {
       case Program(functions, stat) =>
         val stackSetUp = addFrame(currST, isFuncStack = false)
+        // instead of generating functions here, store them and generate when it is called
         this.functions = functions
         val mainStart = ListBuffer(
           Directive("global main"),
@@ -44,6 +54,7 @@ object CodeGenerator {
         val statGen = stat.map(s => generate(s))
         mainStart ++ stackSetUp ++ statGen.flatten ++ removeFrame() ++ mainEnd ++
           nonMainFunc.values.flatten ++
+          // all stuff wrapped in .data and .text are here in one place
           ListBuffer(Directive("data")) ++ getPrintInstr ++ ListBuffer(Directive("text"))
       case AssignNew(_, ident, rvalue) =>
         rvalueGen(rvalue) ++
@@ -65,6 +76,7 @@ object CodeGenerator {
             result ++= exprGen(exprList.head, 10)
             result ++= rvalueGen(rvalue)
             result += Load(Reg(3), getVar(ident.name).get)
+            // array pointer in r3, index in r10, value in r8, same as in reference compiler
             if (isCharArray) result += BranchLink("array_store_b")
             else result += BranchLink("array_store")
             result
@@ -124,97 +136,13 @@ object CodeGenerator {
         stackSetUp ++ statGen.flatten ++ removeFrame() ++ ListBuffer(Move(Reg(0), Immediate(0)))
       case Skip() => ListBuffer()
       case Exit(expr) =>
-        val exitGen = exprGen(expr, 8) ++ ListBuffer(Move(Reg(0), Reg(8)))
+        val exitGen = exprGen(expr, 8)
         val exit = ListBuffer(Move(Reg(0), Reg(8)), BranchLink("exit"))
         exitGen ++ exit
-      case Print(expr) =>
-        val printGen = exprGen(expr, 8) ++ ListBuffer(Move(Reg(0), Reg(8)))
-        expr match {
-          case IntLiter(_) =>
-            val print = ListBuffer(BranchLink("print_int"))
-            nonMainFunc += ("print_int" -> printInt())
-            printGen ++ print
-          case StrLiter(_) =>
-            val print = ListBuffer(BranchLink("print_str"))
-            nonMainFunc += ("print_str" -> printString())
-            printGen ++ print
-          case CharLiter(_) | Chr(_) =>
-            val print = ListBuffer(BranchLink("print_char"))
-            nonMainFunc += ("print_char" -> printChar())
-            printGen ++ print
-          case BoolLiter(_) =>
-            val print = ListBuffer(BranchLink("print_bool"))
-            nonMainFunc += ("print_bool" -> printBool())
-            printGen ++ print
-          case PairLiter() =>
-            val print = ListBuffer(BranchLink("print_addr"))
-            nonMainFunc += ("print_addr" -> printAddr())
-            printGen ++ print
-          case Add(_, _) | Mul(_, _) | Div(_, _) | Sub(_, _) | Mod(_, _) | Neg(_) | Ord(_) | Len(_) =>
-            val print = ListBuffer(BranchLink("print_int"))
-            nonMainFunc += ("print_int" -> printInt())
-            printGen ++ print
-          case GT(_, _) | GTE(_, _) | LT(_, _) | LTE(_, _) | EQ(_, _) | NEQ(_, _) =>
-            val print = ListBuffer(BranchLink("print_bool"))
-            nonMainFunc += ("print_bool" -> printBool())
-            printGen ++ print
-          case And(_, _) | Or(_, _) | Not(_) =>
-            val print = ListBuffer(BranchLink("print_bool"))
-            nonMainFunc += ("print_bool" -> printBool())
-            printGen ++ print
-          case ArrayElem(ident, _) =>
-            currST.lookupAll(ident.name).get._1 match {
-              case ArrayST(CharST()) =>
-                val print = ListBuffer(BranchLink("print_char"))
-                nonMainFunc += ("print_char" -> printChar())
-                printGen ++ print
-              case ArrayST(StringST()) =>
-                val print = ListBuffer(BranchLink("print_str"))
-                nonMainFunc += ("print_str" -> printString())
-                printGen ++ print
-              case ArrayST(BoolST()) =>
-                val print = ListBuffer(BranchLink("print_bool"))
-                nonMainFunc += ("print_bool" -> printBool())
-                printGen ++ print
-              case _ =>
-                val print = ListBuffer(BranchLink("print_int"))
-                nonMainFunc += ("print_int" -> printInt())
-                printGen ++ print
-            }
-          case Ident(a) =>
-            currST.lookupAll(a).get._1 match {
-              case IntST() =>
-                val print = ListBuffer(BranchLink("print_int"))
-                nonMainFunc += ("print_int" -> printInt())
-                printGen ++ print
-              case BoolST() =>
-                val print = ListBuffer(BranchLink("print_bool"))
-                nonMainFunc += ("print_bool" -> printBool())
-                printGen ++ print
-              case CharST() =>
-                val print = ListBuffer(BranchLink("print_char"))
-                nonMainFunc += ("print_char" -> printChar())
-                printGen ++ print
-              case StringST() =>
-                val print = ListBuffer(BranchLink("print_str"))
-                nonMainFunc += ("print_str" -> printString())
-                printGen ++ print
-              case ArrayST(CharST()) =>
-                val print = ListBuffer(BranchLink("print_str"))
-                nonMainFunc += ("print_str" -> printString())
-                printGen ++ print
-              case ArrayST(_) | PairST(_, _) =>
-                val print = ListBuffer(BranchLink("print_addr"))
-                nonMainFunc += ("print_addr" -> printAddr())
-                printGen ++ print
-              case _ => ListBuffer()
-            }
-          case _ => ListBuffer()
-        }
+      case Print(expr) => printGen(expr)
       case Println(expr) =>
-        val normalPrint = generate(Print(expr)(expr.pos))
         nonMainFunc += ("print_ln" -> printLn())
-        normalPrint ++ ListBuffer(BranchLink("print_ln"))
+        printGen(expr) ++ ListBuffer(BranchLink("print_ln"))
       case Read(expr) =>
         expr match {
           case Ident(name) =>
@@ -285,6 +213,77 @@ object CodeGenerator {
           result
       case _ => ListBuffer()
     }
+  }
+
+  private def printGen(expr: Expr): ListBuffer[Instruction] = {
+    val res = ListBuffer[Instruction]()
+    res ++= exprGen(expr, 8)
+    res += Move(Reg(0), Reg(8))
+    expr match {
+      case IntLiter(_) =>
+        nonMainFunc += ("print_int" -> printInt())
+        res += BranchLink("print_int")
+      case StrLiter(_) =>
+        nonMainFunc += ("print_str" -> printString())
+        res += BranchLink("print_str")
+      case CharLiter(_) | Chr(_) =>
+        nonMainFunc += ("print_char" -> printChar())
+        res += BranchLink("print_char")
+      case BoolLiter(_) =>
+        nonMainFunc += ("print_bool" -> printBool())
+        res += BranchLink("print_bool")
+      case PairLiter() =>
+        nonMainFunc += ("print_addr" -> printAddr())
+        res += BranchLink("print_addr")
+      case Add(_, _) | Mul(_, _) | Div(_, _) | Sub(_, _) | Mod(_, _) | Neg(_) | Ord(_) | Len(_) =>
+        nonMainFunc += ("print_int" -> printInt())
+        res += BranchLink("print_int")
+      case GT(_, _) | GTE(_, _) | LT(_, _) | LTE(_, _) | EQ(_, _) | NEQ(_, _) =>
+        nonMainFunc += ("print_bool" -> printBool())
+        res += BranchLink("print_bool")
+      case And(_, _) | Or(_, _) | Not(_) =>
+        nonMainFunc += ("print_bool" -> printBool())
+        res += BranchLink("print_bool")
+      case ArrayElem(ident, _) =>
+        currST.lookupAll(ident.name).get._1 match {
+          case ArrayST(CharST()) =>
+            nonMainFunc += ("print_char" -> printChar())
+            res += BranchLink("print_char")
+          case ArrayST(StringST()) =>
+            nonMainFunc += ("print_str" -> printString())
+            res += BranchLink("print_str")
+          case ArrayST(BoolST()) =>
+            nonMainFunc += ("print_bool" -> printBool())
+            res += BranchLink("print_bool")
+          case _ =>
+            nonMainFunc += ("print_int" -> printInt())
+            res += BranchLink("print_int")
+        }
+      case Ident(name) =>
+        currST.lookupAll(name).get._1 match {
+          case IntST() =>
+            nonMainFunc += ("print_int" -> printInt())
+            res += BranchLink("print_int")
+          case CharST() =>
+            nonMainFunc += ("print_char" -> printChar())
+            res += BranchLink("print_char")
+          case StringST() =>
+            nonMainFunc += ("print_str" -> printString())
+            res += BranchLink("print_str")
+          case BoolST() =>
+            nonMainFunc += ("print_bool" -> printBool())
+            res += BranchLink("print_bool")
+          case ArrayST(CharST()) =>
+            nonMainFunc += ("print_str" -> printString())
+            res += BranchLink("print_str")
+          case PairST(_, _) | ArrayST(_) =>
+            nonMainFunc += ("print_addr" -> printAddr())
+            res += BranchLink("print_addr")
+          case _ =>
+        }
+      case _ =>
+    }
+    res
   }
 
   private def readTypeHelper(t: TypeST): ListBuffer[Instruction] = {
