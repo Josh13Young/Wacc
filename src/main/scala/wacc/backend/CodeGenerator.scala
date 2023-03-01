@@ -27,43 +27,24 @@ object CodeGenerator {
   var currST: SymbolTable = _
   private var labelCnt = 0
 
-  private def generateFunc(func: Func): ListBuffer[Instruction] = {
-    currST = func.symbolTable
-    funcStackIniSize = getStackSize
-    val stackSetUp = addFrame(currST, isStack = true)
-    val funcStart = ListBuffer(
-      Label("wacc_" + func.ident.name),
-      Push(List(LinkRegister()))
-    )
-    val eval = func.stat.map(s => generate(s))
-    val funcEnd = ListBuffer(
-      Pop(List(ProgramCounter())),
-      Directive("ltorg")
-    )
-    nonMainFunc += ("wacc_" + func.ident.name -> (funcStart ++ stackSetUp ++ eval.flatten ++ removeFrame() ++ funcEnd))
-    ListBuffer()
-  }
-
   def generate(ast: ASTNode): ListBuffer[Instruction] = {
-    val mainStart = ListBuffer(
-      Directive("global main"),
-      Label("main"),
-      Push(List(LinkRegister()))
-    )
-
-    val mainEnd = ListBuffer(
-      Move(Reg(0), Immediate(0)),
-      Pop(List(ProgramCounter())))
-
     ast match {
       case Program(functions, stat) =>
-        val stackSetUp = addFrame(currST, isStack = false)
+        val stackSetUp = addFrame(currST, isFuncStack = false)
         this.functions = functions
+        val mainStart = ListBuffer(
+          Directive("global main"),
+          Label("main"),
+          Push(List(LinkRegister()))
+        )
+        val mainEnd = ListBuffer(
+          Move(Reg(0), Immediate(0)),
+          Pop(List(ProgramCounter()))
+        )
         val statGen = stat.map(s => generate(s))
         mainStart ++ stackSetUp ++ statGen.flatten ++ removeFrame() ++ mainEnd ++
           nonMainFunc.values.flatten ++
-          ListBuffer(Directive("data")) ++ getPrintInstr ++
-          ListBuffer(Directive("text"))
+          ListBuffer(Directive("data")) ++ getPrintInstr ++ ListBuffer(Directive("text"))
       case AssignNew(_, ident, rvalue) =>
         rvalueGen(rvalue) ++
           storeVar(ident.name, Reg(8)) ++
@@ -106,12 +87,12 @@ object CodeGenerator {
         val contLabel = ".L" + (labelCnt + 1)
         labelCnt += 2
         val condGen = exprGen(cond, 8)
-        val falseStack = addFrame(_if.falseSymbolTable, isStack = false)
+        val falseStack = addFrame(_if.falseSymbolTable, isFuncStack = false)
         currST = _if.falseSymbolTable
         // the parent symbol table of "if" (set when checking semantics) should be the old currST before this assignment
         val falseGen = falseStat.map(s => generate(s))
         val falseRemove = removeFrame()
-        val trueStack = addFrame(_if.trueSymbolTable, isStack = false)
+        val trueStack = addFrame(_if.trueSymbolTable, isFuncStack = false)
         currST = _if.trueSymbolTable
         val trueGen = trueStat.map(s => generate(s))
         val trueRemove = removeFrame()
@@ -120,24 +101,23 @@ object CodeGenerator {
           falseStack ++ falseGen.flatten ++ falseRemove ++
           ListBuffer(Branch(Nothing, Label(contLabel)), Label(trueLabel)) ++
           trueStack ++ trueGen.flatten ++ trueRemove ++
-          ListBuffer(Label(contLabel)) ++ ListBuffer(Move(Reg(0), Immediate(0)))
+          ListBuffer(Label(contLabel), Move(Reg(0), Immediate(0)))
       case w@While(cond, stat) =>
         val condLabel = ".L" + labelCnt
         val loopLabel = ".L" + (labelCnt + 1)
         labelCnt += 2
         val condGen = exprGen(cond, 8)
         currST = w.symbolTable
-        val whileStack = addFrame(w.symbolTable, isStack = false)
+        val whileStack = addFrame(w.symbolTable, isFuncStack = false)
         val statGen = stat.map(s => generate(s))
         val whileRemove = removeFrame()
         currST = w.symbolTable.parentTable.get
         ListBuffer(Branch(Nothing, Label(condLabel)), Label(loopLabel)) ++
           whileStack ++ statGen.flatten ++ whileRemove ++
           ListBuffer(Label(condLabel)) ++ condGen ++
-          ListBuffer(Compare(Reg(8), Immediate(1)), Branch(Equal, Label(loopLabel))) ++
-          ListBuffer(Move(Reg(0), Immediate(0)))
+          ListBuffer(Compare(Reg(8), Immediate(1)), Branch(Equal, Label(loopLabel)), Move(Reg(0), Immediate(0)))
       case bgn@BeginStat(stat) =>
-        val stackSetUp = addFrame(bgn.symbolTable, isStack = false)
+        val stackSetUp = addFrame(bgn.symbolTable, isFuncStack = false)
         currST = bgn.symbolTable
         val statGen = stat.map(s => generate(s))
         currST = bgn.symbolTable.parentTable.get
@@ -240,7 +220,7 @@ object CodeGenerator {
           case Ident(name) =>
             val result = readTypeHelper(currST.lookupAll(name).get._1)
             if (result.nonEmpty)
-              result ++= ListBuffer(Store(Reg(0), getVar(name).get))
+              result += Store(Reg(0), getVar(name).get)
             result
           case fst@FstElem(f) =>
             val fstGen = lvalueGen(fst)
@@ -343,7 +323,7 @@ object CodeGenerator {
       case snd@SndElem(_) => lvalueGen(snd)
       case call@Call(ident, exprList) =>
         val result = ListBuffer[Instruction]()
-        result ++= addFrame(call.symbolTable, isStack = false)
+        result ++= addFrame(call.symbolTable, isFuncStack = false)
         val callList = call.symbolTable.getDictNameType.map(_._1)
         for (e <- exprList.indices) {
           result ++= exprGen(exprList(e), 8)
@@ -470,22 +450,24 @@ object CodeGenerator {
     result += Move(Reg(12), StackPointer())
     result ++= exprGen(array.exprList.head, 10)
     result += Load(Reg(8), getVar(array.ident.name).get)
-    result += Push(List(Reg(3)))
-    result += Move(Reg(3), Reg(8))
-    result += BranchLink(label)
-    result += Move(Reg(8), Reg(3))
-    result += Pop(List(Reg(3)))
+    result ++= arrayElemLoadHelper(label)
     for (i <- array.exprList.indices.tail) {
       result += Push(List(Reg(8)))
       result ++= exprGen(array.exprList(i), 10)
       result += Pop(List(Reg(8)))
-      result += Push(List(Reg(3)))
-      result += Move(Reg(3), Reg(8))
-      result += BranchLink(label)
-      result += Move(Reg(8), Reg(3))
-      result += Pop(List(Reg(3)))
+      result ++= arrayElemLoadHelper(label)
     }
     result
+  }
+
+  private def arrayElemLoadHelper(label: String): ListBuffer[Instruction] = {
+    ListBuffer(
+      Push(List(Reg(3))),
+      Move(Reg(3), Reg(8)),
+      BranchLink(label),
+      Move(Reg(8), Reg(3)),
+      Pop(List(Reg(3)))
+    )
   }
 
   @tailrec
@@ -496,6 +478,23 @@ object CodeGenerator {
       case ArrayST(t) => arrayElemSizeHelper(t)
       case _ => false
     }
+  }
+
+  private def generateFunc(func: Func): ListBuffer[Instruction] = {
+    currST = func.symbolTable
+    funcStackIniSize = getStackSize
+    val stackSetUp = addFrame(currST, isFuncStack = true)
+    val funcStart = ListBuffer(
+      Label("wacc_" + func.ident.name),
+      Push(List(LinkRegister()))
+    )
+    val eval = func.stat.map(s => generate(s))
+    val funcEnd = ListBuffer(
+      Pop(List(ProgramCounter())),
+      Directive("ltorg")
+    )
+    nonMainFunc += ("wacc_" + func.ident.name -> (funcStart ++ stackSetUp ++ eval.flatten ++ removeFrame() ++ funcEnd))
+    ListBuffer()
   }
 
   private def exprGen(expr: Expr, reg: Int): ListBuffer[Instruction] = {

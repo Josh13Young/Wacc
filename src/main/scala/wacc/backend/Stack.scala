@@ -16,7 +16,7 @@ object Stack {
     val variableMap: mutable.Map[String, Operand] = scala.collection.mutable.Map[String, Operand]()
     val variableDefined: mutable.Set[String] = scala.collection.mutable.Set[String]()
     var pointer = 0
-    var isStack = false
+    var isFuncStack = false
   }
 
   private def addVar(name: String, t: TypeST, sf: StackFrame): Unit = {
@@ -52,10 +52,10 @@ object Stack {
     result
   }
 
-  def addFrame(st: SymbolTable, isStack: Boolean): ListBuffer[Instruction] = {
+  def addFrame(st: SymbolTable, isFuncStack: Boolean): ListBuffer[Instruction] = {
     val sf = new StackFrame
     stack.push(sf)
-    sf.isStack = isStack
+    sf.isFuncStack = isFuncStack
     ListBuffer(Push(List(FramePointer()))) ++ addVarST(st, sf) ++ ListBuffer(Move(FramePointer(), StackPointer()))
   }
 
@@ -97,7 +97,7 @@ object Stack {
         }
       }
       fpOffset += sf.pointer + 4 // 4 for the poped fp
-      if (sf.isStack) {
+      if (sf.isFuncStack) {
         fpOffset += 4
       }
     }
