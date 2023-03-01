@@ -425,6 +425,7 @@ object CodeGenerator {
       // only dealt with array(int) so far
       case ArrayST(IntST()) =>
         result += Move(Reg(0), Immediate((array.exprList.length + 1) * 4))
+        result += BranchLink("malloc")
         result ++= arrayLiterLengthHelper(array.exprList.length)
         for (i <- array.exprList.indices) {
           array.exprList(i) match {
