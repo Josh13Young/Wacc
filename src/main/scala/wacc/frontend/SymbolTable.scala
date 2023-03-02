@@ -66,7 +66,6 @@ class SymbolTable(parent: Option[SymbolTable]) {
     dictionary.toList.map(x => (x._2._1, x._2._2))
   }
 
-  def getDictNameType: List[(String, TypeST)] = {
-    dictionary.toList.map(x => (x._1, x._2._1))
-  }
+  def getDictName: List[String] =
+    dictionary.toList.map(x => x._1)
 }

@@ -6,7 +6,8 @@ import wacc.backend.Operand._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-object Print {
+// to generate code in data segment (between .data and .text)
+object DataSeg {
 
   def printInt(): ListBuffer[Instruction] = {
     ListBuffer(
@@ -72,6 +73,38 @@ object Print {
       BranchLink("scanf"),
       LoadRegSignedByte(Reg(0), RegOffset(StackPointer(), Immediate(0))),
       AddInstr(StackPointer(), StackPointer(), Immediate(1)),
+      Pop(List(ProgramCounter()))
+    )
+  }
+
+  def printBool(): ListBuffer[Instruction] = {
+    ListBuffer(
+      Label("print_bool"),
+      Push(List(LinkRegister())),
+      Compare(Reg(0), Immediate(0)), // 0 is false
+      Branch(NotEqual, Label("print_false")),
+      Load(Reg(2), LabelJump(addStrFun("false"))),
+      Branch(Nothing, Label("print_bool_cont")),
+      Label("print_false"),
+      Load(Reg(2), LabelJump(addStrFun("true"))),
+      Label("print_bool_cont"),
+      Load(Reg(1), RegOffset(Reg(2), Immediate(-4))),
+      Load(Reg(0), LabelJump(addStrFun("%.*s"))),
+      BranchLink("printf"),
+      Move(Reg(0), Immediate(0)),
+      BranchLink("fflush"),
+      Pop(List(ProgramCounter()))
+    )
+  }
+
+  def printLn(): ListBuffer[Instruction] = {
+    ListBuffer(
+      Label("print_ln"),
+      Push(List(LinkRegister())),
+      Load(Reg(0), LabelJump(addStrFun(""))),
+      BranchLink("puts"),
+      Move(Reg(0), Immediate(0)),
+      BranchLink("fflush"),
       Pop(List(ProgramCounter()))
     )
   }
@@ -211,38 +244,7 @@ object Print {
     )
   }
 
-  def printBool(): ListBuffer[Instruction] = {
-    ListBuffer(
-      Label("print_bool"),
-      Push(List(LinkRegister())),
-      Compare(Reg(0), Immediate(0)), // 0 is false
-      Branch(NotEqual, Label("print_false")),
-      Load(Reg(2), LabelJump(addStrFun("false"))),
-      Branch(Nothing, Label("print_bool_cont")),
-      Label("print_false"),
-      Load(Reg(2), LabelJump(addStrFun("true"))),
-      Label("print_bool_cont"),
-      Load(Reg(1), RegOffset(Reg(2), Immediate(-4))),
-      Load(Reg(0), LabelJump(addStrFun("%.*s"))),
-      BranchLink("printf"),
-      Move(Reg(0), Immediate(0)),
-      BranchLink("fflush"),
-      Pop(List(ProgramCounter()))
-    )
-  }
-
-  def printLn(): ListBuffer[Instruction] = {
-    ListBuffer(
-      Label("print_ln"),
-      Push(List(LinkRegister())),
-      Load(Reg(0), LabelJump(addStrFun(""))),
-      BranchLink("puts"),
-      Move(Reg(0), Immediate(0)),
-      BranchLink("fflush"),
-      Pop(List(ProgramCounter()))
-    )
-  }
-
+  // add a string function
   case class StrFuncGen(content: String, ind: String, size: Int) {
     val label: String = s"str_$ind"
     val instructions: ListBuffer[Instruction] = ListBuffer(
@@ -252,10 +254,13 @@ object Print {
     )
   }
 
+  // a map of content -> instruction for storing strings
   private val PrintInstrMap: mutable.LinkedHashMap[String, StrFuncGen] = mutable.LinkedHashMap()
+  // a counter for the number of string functions (str_0, str_1, ...)
   private var funcTypeCount: Int = 0
 
   def addStrFun(content: String): String = {
+    // return the label if found (label such as str_0, str_1, ...)
     if (PrintInstrMap.contains(content)) {
       return PrintInstrMap(content).label
     }

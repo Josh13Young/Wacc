@@ -3,7 +3,7 @@ package wacc.backend
 import wacc.ast._
 import wacc.backend.Instruction._
 import wacc.backend.Operand._
-import wacc.backend.Print._
+import wacc.backend.DataSeg._
 import wacc.backend.Stack._
 import wacc.backend.Translator.translate
 import wacc.frontend.STType._
@@ -329,7 +329,7 @@ object CodeGenerator {
         val result = ListBuffer[Instruction]()
         result ++= addFrame(call.symbolTable, isFuncStack = false)
         // callList is the list of types of the parameters of the function in order
-        val callList = call.symbolTable.getDictNameType.map(_._1)
+        val callList = call.symbolTable.getDictName
         for (e <- exprList.indices) {
           result ++= exprGen(exprList(e), 8)
           result ++= storeVar(callList(e), Reg(8))
@@ -462,6 +462,7 @@ object CodeGenerator {
       nonMainFunc += (label -> arrayLoadByte())
     } else
       nonMainFunc += (label -> arrayLoad())
+    // for arrayLoad : array ptr in r3, index in r10, return value in r3 (r3 bit handled in arrayElemLoadHelper)
     result += Move(Reg(12), StackPointer())
     result ++= exprGen(array.exprList.head, 10)
     result += Load(Reg(8), getVar(array.ident.name).get)

@@ -4,6 +4,7 @@ import wacc.backend.Instruction._
 
 object Translator {
 
+  // adds a tab in front of each instruction (not label and directive)
   def translate(instr: Instruction): String = {
     instr match {
       case Label(name) =>
