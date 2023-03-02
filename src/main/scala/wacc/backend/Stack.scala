@@ -1,5 +1,6 @@
 package wacc.backend
 
+import wacc.backend.Const._
 import wacc.backend.Instruction.{AddInstr, Instruction, Move, Pop, Push, Store, SubInstr}
 import wacc.backend.Operand.{FramePointer, Immediate, Operand, Reg, RegOffset, StackPointer}
 import wacc.frontend.SymbolTable
@@ -25,7 +26,7 @@ object Stack {
   // add a new variable to stack frame
   private def addVar(name: String, sf: StackFrame): Unit = {
     // offset is 4 for all data types including bool and char, a bit wasteful but easy to manage
-    val offset = 4
+    val offset = WORD
     val location = RegOffset(FramePointer(), Immediate(sf.pointer))
     sf.variableMap += (name -> location)
     sf.pointer += offset
@@ -44,9 +45,9 @@ object Stack {
     val result: ListBuffer[Instruction] = ListBuffer()
     // to solve invalid constant after fixup
     var totalOffset = sf.pointer
-    while (totalOffset >= 900) {
-      result += SubInstr(StackPointer(), StackPointer(), Immediate(900))
-      totalOffset -= 900
+    while (totalOffset >= MAX_BYTE) {
+      result += SubInstr(StackPointer(), StackPointer(), Immediate(MAX_BYTE))
+      totalOffset -= MAX_BYTE
     }
     result += SubInstr(StackPointer(), StackPointer(), Immediate(totalOffset))
     result
@@ -69,9 +70,9 @@ object Stack {
     val sf = stack.pop()
     var totalOffset = sf.pointer
     val result: ListBuffer[Instruction] = ListBuffer()
-    while (totalOffset >= 900) {
-      result += AddInstr(StackPointer(), StackPointer(), Immediate(900))
-      totalOffset -= 900
+    while (totalOffset >= MAX_BYTE) {
+      result += AddInstr(StackPointer(), StackPointer(), Immediate(MAX_BYTE))
+      totalOffset -= MAX_BYTE
     }
     result += AddInstr(StackPointer(), StackPointer(), Immediate(totalOffset))
     result += Pop(List(FramePointer()))
@@ -83,9 +84,9 @@ object Stack {
     val sf = clone.pop()
     var totalOffset = sf.pointer
     val result: ListBuffer[Instruction] = ListBuffer()
-    while (totalOffset >= 900) {
-      result += AddInstr(StackPointer(), StackPointer(), Immediate(900))
-      totalOffset -= 900
+    while (totalOffset >= MAX_BYTE) {
+      result += AddInstr(StackPointer(), StackPointer(), Immediate(MAX_BYTE))
+      totalOffset -= MAX_BYTE
     }
     result += AddInstr(StackPointer(), StackPointer(), Immediate(totalOffset))
     result += Pop(List(FramePointer()))
@@ -104,9 +105,9 @@ object Stack {
           case _ => return None // Not reachable
         }
       }
-      fpOffset += sf.pointer + 4 // 4 for extra fp
+      fpOffset += sf.pointer + WORD // 4 for extra fp
       if (sf.isFuncStack) {
-        fpOffset += 4 // 4 more for extra pc
+        fpOffset += WORD // 4 more for extra pc
       }
     }
     None // Not reachable

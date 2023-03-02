@@ -1,5 +1,6 @@
 package wacc.backend
 
+import wacc.backend.Const._
 import wacc.backend.Instruction._
 import wacc.backend.Operand._
 
@@ -26,12 +27,12 @@ object DataSeg {
     ListBuffer(
       Label("read_int"),
       Push(List(LinkRegister())),
-      Store(Reg(0), RegOffsetWriteBack(StackPointer(), Immediate(-4))),
+      Store(Reg(0), RegOffsetWriteBack(StackPointer(), Immediate(-WORD))),
       Move(Reg(1), StackPointer()),
       Load(Reg(0), LabelJump(addStrFun("%d"))),
       BranchLink("scanf"),
       Load(Reg(0), RegOffset(StackPointer(), Immediate(0))),
-      AddInstr(StackPointer(), StackPointer(), Immediate(4)),
+      AddInstr(StackPointer(), StackPointer(), Immediate(WORD)),
       Pop(List(ProgramCounter()))
     )
   }
@@ -41,7 +42,7 @@ object DataSeg {
       Label("print_str"),
       Push(List(LinkRegister())),
       Move(Reg(2), Reg(0)),
-      Load(Reg(1), RegOffset(Reg(0), Immediate(-4))),
+      Load(Reg(1), RegOffset(Reg(0), Immediate(-WORD))),
       Load(Reg(0), LabelJump(addStrFun("%.*s"))),
       BranchLink("printf"),
       Move(Reg(0), Immediate(0)),
@@ -67,12 +68,12 @@ object DataSeg {
     ListBuffer(
       Label("read_char"),
       Push(List(LinkRegister())),
-      StoreRegByte(Reg(0), RegOffsetWriteBack(StackPointer(), Immediate(-1))),
+      StoreRegByte(Reg(0), RegOffsetWriteBack(StackPointer(), Immediate(-BYTE))),
       Move(Reg(1), StackPointer()),
       Load(Reg(0), LabelJump(addStrFun(" %c"))),
       BranchLink("scanf"),
       LoadRegSignedByte(Reg(0), RegOffset(StackPointer(), Immediate(0))),
-      AddInstr(StackPointer(), StackPointer(), Immediate(1)),
+      AddInstr(StackPointer(), StackPointer(), Immediate(BYTE)),
       Pop(List(ProgramCounter()))
     )
   }
@@ -81,14 +82,14 @@ object DataSeg {
     ListBuffer(
       Label("print_bool"),
       Push(List(LinkRegister())),
-      Compare(Reg(0), Immediate(0)), // 0 is false
+      Compare(Reg(0), Immediate(FALSE)),
       Branch(NotEqual, Label("print_false")),
       Load(Reg(2), LabelJump(addStrFun("false"))),
       Branch(Nothing, Label("print_bool_cont")),
       Label("print_false"),
       Load(Reg(2), LabelJump(addStrFun("true"))),
       Label("print_bool_cont"),
-      Load(Reg(1), RegOffset(Reg(2), Immediate(-4))),
+      Load(Reg(1), RegOffset(Reg(2), Immediate(-WORD))),
       Load(Reg(0), LabelJump(addStrFun("%.*s"))),
       BranchLink("printf"),
       Move(Reg(0), Immediate(0)),
@@ -127,11 +128,11 @@ object DataSeg {
       Label("free_pair"),
       Push(List(LinkRegister())),
       Move(Reg(8), Reg(0)),
-      Compare(Reg(8), Immediate(0)),
+      Compare(Reg(8), Immediate(FALSE)),
       BranchLinkWithCond(Equal, "null_error"),
       Load(Reg(0), RegOffset(Reg(8), Immediate(0))),
       BranchLink("free"),
-      Load(Reg(0), RegOffset(Reg(8), Immediate(4))),
+      Load(Reg(0), RegOffset(Reg(8), Immediate(WORD))),
       Move(Reg(0), Reg(8)),
       BranchLink("free"),
       Pop(List(ProgramCounter()))
@@ -139,66 +140,43 @@ object DataSeg {
   }
 
   def arrayLoad(): ListBuffer[Instruction] = {
-    ListBuffer(
-      Label("array_load"),
-      Push(List(LinkRegister())),
-      Compare(Reg(10), Immediate(0)),
-      MoveCond(LessThan, Reg(1), Reg(10)),
-      BranchLinkWithCond(LessThan, "bounds_error"),
-      Load(LinkRegister(), RegOffset(Reg(3), Immediate(-4))),
-      Compare(Reg(10), LinkRegister()),
-      MoveCond(GreaterEqual, Reg(1), Reg(10)),
-      BranchLinkWithCond(GreaterEqual, "bounds_error"),
+    ListBuffer(Label("array_load")) ++ arrayCheckBoundHelper() ++ ListBuffer(
       Load(Reg(3), RegOffsetOperand2(Reg(3), Operand2(Reg(10), "lsl", Immediate(2)))),
       Pop(List(ProgramCounter()))
     )
   }
 
   def arrayLoadByte(): ListBuffer[Instruction] = {
-    ListBuffer(
-      Label("array_load_b"),
-      Push(List(LinkRegister())),
-      Compare(Reg(10), Immediate(0)),
-      MoveCond(LessThan, Reg(1), Reg(10)),
-      BranchLinkWithCond(LessThan, "bounds_error"),
-      Load(LinkRegister(), RegOffset(Reg(3), Immediate(-4))),
-      Compare(Reg(10), LinkRegister()),
-      MoveCond(GreaterEqual, Reg(1), Reg(10)),
-      BranchLinkWithCond(GreaterEqual, "bounds_error"),
+    ListBuffer(Label("array_load_b")) ++ arrayCheckBoundHelper() ++ ListBuffer(
       LoadRegSignedByte(Reg(3), RegOffsetReg(Reg(3), Reg(10))),
       Pop(List(ProgramCounter()))
     )
   }
 
   def arrayStore(): ListBuffer[Instruction] = {
-    ListBuffer(
-      Label("array_store"),
-      Push(List(LinkRegister())),
-      Compare(Reg(10), Immediate(0)),
-      MoveCond(LessThan, Reg(1), Reg(10)),
-      BranchLinkWithCond(LessThan, "bounds_error"),
-      Load(LinkRegister(), RegOffset(Reg(3), Immediate(-4))),
-      Compare(Reg(10), LinkRegister()),
-      MoveCond(GreaterEqual, Reg(1), Reg(10)),
-      BranchLinkWithCond(GreaterEqual, "bounds_error"),
+    ListBuffer(Label("array_store")) ++ arrayCheckBoundHelper() ++ ListBuffer(
       Store(Reg(8), RegOffsetOperand2(Reg(3), Operand2(Reg(10), "lsl", Immediate(2)))),
       Pop(List(ProgramCounter()))
     )
   }
 
   def arrayStoreByte(): ListBuffer[Instruction] = {
-    ListBuffer(
-      Label("array_store_b"),
-      Push(List(LinkRegister())),
-      Compare(Reg(10), Immediate(0)),
-      MoveCond(LessThan, Reg(1), Reg(10)),
-      BranchLinkWithCond(LessThan, "bounds_error"),
-      Load(LinkRegister(), RegOffset(Reg(3), Immediate(-4))),
-      Compare(Reg(10), LinkRegister()),
-      MoveCond(GreaterEqual, Reg(1), Reg(10)),
-      BranchLinkWithCond(GreaterEqual, "bounds_error"),
+    ListBuffer(Label("array_store_b")) ++ arrayCheckBoundHelper() ++ ListBuffer(
       StoreRegByte(Reg(8), RegOffsetReg(Reg(3), Reg(10))),
       Pop(List(ProgramCounter()))
+    )
+  }
+
+  private def arrayCheckBoundHelper(): ListBuffer[Instruction] = {
+    ListBuffer(
+      Push(List(LinkRegister())),
+      Compare(Reg(10), Immediate(FALSE)),
+      MoveCond(LessThan, Reg(1), Reg(10)),
+      BranchLinkWithCond(LessThan, "bounds_error"),
+      Load(LinkRegister(), RegOffset(Reg(3), Immediate(-WORD))),
+      Compare(Reg(10), LinkRegister()),
+      MoveCond(GreaterEqual, Reg(1), Reg(10)),
+      BranchLinkWithCond(GreaterEqual, "bounds_error")
     )
   }
 
@@ -207,7 +185,7 @@ object DataSeg {
       Label("overflow_error"),
       Load(Reg(0), LabelJump(addStrFun("fatal error: integer overflow"))),
       BranchLink("print_str"),
-      Move(Reg(0), Immediate(255)),
+      Move(Reg(0), Immediate(RUNTIME_ERROR)),
       BranchLink("exit")
     )
   }
@@ -217,7 +195,7 @@ object DataSeg {
       Label("divide_by_zero_error"),
       Load(Reg(0), LabelJump(addStrFun("fatal error: divide by zero"))),
       BranchLink("print_str"),
-      Move(Reg(0), Immediate(255)),
+      Move(Reg(0), Immediate(RUNTIME_ERROR)),
       BranchLink("exit")
     )
   }
@@ -229,7 +207,7 @@ object DataSeg {
       BranchLink("printf"),
       Move(Reg(0), Immediate(0)),
       BranchLink("fflush"),
-      Move(Reg(0), Immediate(255)),
+      Move(Reg(0), Immediate(RUNTIME_ERROR)),
       BranchLink("exit")
     )
   }
@@ -239,7 +217,7 @@ object DataSeg {
       Label("null_error"),
       Load(Reg(0), LabelJump(addStrFun("fatal error: null pointer"))),
       BranchLink("print_str"),
-      Move(Reg(0), Immediate(255)),
+      Move(Reg(0), Immediate(RUNTIME_ERROR)),
       BranchLink("exit")
     )
   }
