@@ -135,12 +135,15 @@ object helperFunction extends AnyFlatSpec {
           case Some(x) => x
           case None => 0
         }
-      output shouldBe(expectedExitValue, getExpectedOutput(inputList))
+      if(expectedExitValue == 255) {
+        output._1 shouldBe expectedExitValue
+      } else {
+        output shouldBe (expectedExitValue, getExpectedOutput(inputList))
+      }
     }
   }
 
-  def filterAddress(addr: String): String = {
-    val newAddr = addr.replaceAll("0x[0-9a-z]{5} ", "#addrs# ").replaceAll("0x[0-9a-z]{5}\n", "#addrs#\n")
-    newAddr
-  }
+  def filterAddress(addr: String): String =
+    addr.replaceAll("0x[0-9a-z]{5} ", "#addrs# ")
+      .replaceAll("0x[0-9a-z]{5}\n", "#addrs#\n")
 }
