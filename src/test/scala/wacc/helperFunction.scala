@@ -7,7 +7,6 @@ import parsley.{Failure, Success}
 import wacc.backend.CodeGenerator
 import wacc.backend.CodeGenerator.{generate, generateString}
 import wacc.frontend.{SymbolTable, parser}
-import scala.util.matching.Regex
 
 import java.io.{ByteArrayOutputStream, File, PrintWriter}
 import scala.sys.process._
@@ -141,8 +140,7 @@ object helperFunction extends AnyFlatSpec {
   }
 
   def filterAddress(addr: String): String = {
-    val newAddr = addr.replaceAll("0x[0-9a-z]{5} ", "#addrs# ")
-    val newnewAddr = newAddr.replaceAll("0x[0-9a-z]{5}\n", "#addrs#\n")
-    newnewAddr
+    val newAddr = addr.replaceAll("0x[0-9a-z]{5} ", "#addrs# ").replaceAll("0x[0-9a-z]{5}\n", "#addrs#\n")
+    newAddr
   }
 }
