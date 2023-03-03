@@ -76,11 +76,11 @@ object helperFunction extends AnyFlatSpec {
     inputList.dropWhile(!_.startsWith("# Output:")).drop(1).takeWhile(_.nonEmpty).map(_.drop(2)).mkString("\n")
   }
 
-  def getExpectedInput(inputList: List[String]): Option[String] = {
+  def getExpectedInput(inputList: List[String]): String = {
     if (inputList.exists(_.startsWith("# Input")))
-      Some(inputList.dropWhile(!_.startsWith("# Input:")).head.replace("# Input: ", ""))
+      inputList.dropWhile(!_.startsWith("# Input:")).head.replace("# Input: ", "")
     else
-      None
+      ""
   }
 
   def getExpectedExitValue(inputList: List[String]): Option[Int] = {
@@ -105,12 +105,8 @@ object helperFunction extends AnyFlatSpec {
           pw.close()
           s"arm-linux-gnueabi-gcc -o temp -mcpu=arm1176jzf-s -mtune=arm1176jzf-s temp.s".!
           val outputStream = new ByteArrayOutputStream
-          val expectedInput = 
-            getExpectedInput(inputList) match {
-              case Some(x) => x
-              case None => ""
-            }
-          val inputStream = new ByteArrayInputStream(expectedInput.getBytes())   
+          val expectedInput = getExpectedInput(inputList)
+          val inputStream = new ByteArrayInputStream(expectedInput.getBytes())
           // see https://stackoverflow.com/questions/216894/get-an-outputstream-into-a-string
           val exitCode = (s"qemu-arm -L /usr/arm-linux-gnueabi/ temp" #< inputStream #> outputStream).!
           val output = outputStream.toString
@@ -143,7 +139,9 @@ object helperFunction extends AnyFlatSpec {
     }
   }
 
+  // replaces memory addresses with #addrs#
   def filterAddress(addr: String): String =
     addr.replaceAll("0x[0-9a-z]{5} ", "#addrs# ")
       .replaceAll("0x[0-9a-z]{5}\n", "#addrs#\n")
+
 }
