@@ -10,7 +10,8 @@ class CodeGenTest extends AnyFlatSpec {
   }
 
   "basic" should "succeed and print correct output for basic" in {
-    assemblyRunFolder("wacc_examples/valid/basic")
+    assemblyRunFolder("wacc_examples/valid/basic/exit")
+    assemblyRunFolder("wacc_examples/valid/basic/skip")
   }
 
   "expressions" should "succeed and print correct output for expressions" in {
@@ -27,6 +28,8 @@ class CodeGenTest extends AnyFlatSpec {
 
   "IO" should "succeed and print correct output for IO" in {
     assemblyRunFolder("wacc_examples/valid/IO")
+    assemblyRunFolder("wacc_examples/valid/IO/print")
+    assemblyRunFolder("wacc_examples/valid/IO/read")
   }
 
   "pairs" should "succeed and print correct output for pairs" in {
@@ -34,7 +37,10 @@ class CodeGenTest extends AnyFlatSpec {
   }
 
   "runtimeErr" should "succeed and print correct output for runtimeErr" in {
-    assemblyRunFolder("wacc_examples/valid/runtimeErr")
+    assemblyRunFolder("wacc_examples/valid/runtimeErr/arrayOutOfBounds")
+    assemblyRunFolder("wacc_examples/valid/runtimeErr/divideByZero")
+    assemblyRunFolder("wacc_examples/valid/runtimeErr/integarOverflow")
+    assemblyRunFolder("wacc_examples/valid/runtimeErr/nullDereference")
   }
 
   "scope" should "succeed and print correct output for scope" in {
