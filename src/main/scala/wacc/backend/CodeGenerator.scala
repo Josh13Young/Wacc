@@ -65,8 +65,8 @@ object CodeGenerator {
         lvalue match {
           case Ident(a) => rvalueGen(rvalue) ++ ListBuffer(Store(Reg(8), getVar(a).get)) ++ ListBuffer(Move(Reg(0), Reg(8)))
           case ArrayElem(ident, exprList) =>
-            val isCharArray = isCharArrayHelper(currST.lookupAll(ident.name).get._1)
-            if (isCharArray) nonMainFunc += ("array_store_b" -> arrayStoreByte())
+            val isByteArray = isByteArrayHelper(lookUpAllGetType(ident.name))
+            if (isByteArray) nonMainFunc += ("array_store_b" -> arrayStoreByte())
             else nonMainFunc += ("array_store" -> arrayStore())
             nonMainFunc += ("bounds_error" -> boundsError())
             val result = ListBuffer[Instruction]()
@@ -74,7 +74,7 @@ object CodeGenerator {
             result ++= rvalueGen(rvalue)
             result += Load(Reg(3), getVar(ident.name).get)
             // array pointer in r3, index in r10, value in r8, same as in reference compiler
-            if (isCharArray) result += BranchLink("array_store_b")
+            if (isByteArray) result += BranchLink("array_store_b")
             else result += BranchLink("array_store")
             result
           case fst@FstElem(_) =>
@@ -143,7 +143,7 @@ object CodeGenerator {
       case Read(expr) =>
         expr match {
           case Ident(name) =>
-            val result = readTypeHelper(currST.lookupAll(name).get._1)
+            val result = readTypeHelper(lookUpAllGetType(name))
             if (result.nonEmpty)
               result += Store(Reg(0), getVar(name).get)
             result
@@ -152,7 +152,7 @@ object CodeGenerator {
             fstGen += Move(Reg(0), Reg(8))
             f match {
               case Ident(name) =>
-                val result = readTypeHelper(currST.lookupAll(name).get._1)
+                val result = readTypeHelper(lookUpAllGetType(name))
                 if (result.nonEmpty) {
                   fstGen ++= result
                   fstGen ++= pairStore(fst)
@@ -167,7 +167,7 @@ object CodeGenerator {
             sndGen += Move(Reg(0), Reg(8))
             s match {
               case Ident(name) =>
-                val result = readTypeHelper(currST.lookupAll(name).get._1)
+                val result = readTypeHelper(lookUpAllGetType(name))
                 if (result.nonEmpty) {
                   sndGen ++= result
                   sndGen ++= pairStore(snd)
@@ -182,7 +182,7 @@ object CodeGenerator {
       case Free(expr) =>
         expr match {
           case Ident(name) =>
-            currST.lookupAll(name).get._1 match {
+            lookUpAllGetType(name) match {
               case PairST(_, _) =>
                 nonMainFunc += ("free_pair" -> freePair())
                 nonMainFunc += ("null_error" -> nullError())
@@ -212,12 +212,19 @@ object CodeGenerator {
     }
   }
 
+  private def lookUpAllGetType(name: String): TypeST = {
+    currST.lookupAll(name) match {
+      case Some((t, _)) => t
+      case None => VoidST() // failed, which shouldn't happen
+    }
+  }
+
   // to find if a given node is an array of char recursively, used for storing
   @tailrec
-  private def isCharArrayHelper(ast: TypeST): Boolean = {
+  private def isByteArrayHelper(ast: TypeST): Boolean = {
     ast match {
-      case ArrayST(CharST()) => true
-      case ArrayST(t) => isCharArrayHelper(t)
+      case ArrayST(CharST()) | ArrayST(BoolST()) => true
+      case ArrayST(t) => isByteArrayHelper(t)
       case _ => false
     }
   }
@@ -253,7 +260,7 @@ object CodeGenerator {
         nonMainFunc += ("print_bool" -> printBool())
         res += BranchLink("print_bool")
       case ArrayElem(ident, _) =>
-        currST.lookupAll(ident.name).get._1 match {
+        lookUpAllGetType(ident.name) match {
           case ArrayST(CharST()) =>
             nonMainFunc += ("print_char" -> printChar())
             res += BranchLink("print_char")
@@ -268,7 +275,7 @@ object CodeGenerator {
             res += BranchLink("print_int")
         }
       case Ident(name) =>
-        currST.lookupAll(name).get._1 match {
+        lookUpAllGetType(name) match {
           case IntST() =>
             nonMainFunc += ("print_int" -> printInt())
             res += BranchLink("print_int")
@@ -465,7 +472,7 @@ object CodeGenerator {
     nonMainFunc += ("bounds_error" -> boundsError())
     val result = ListBuffer[Instruction]()
     var label = "array_load"
-    if (arrayElemSizeHelper(currST.lookupAll(array.ident.name).get._1)) {
+    if (arrayElemSizeHelper(lookUpAllGetType(array.ident.name))) {
       label = "array_load_b"
       nonMainFunc += (label -> arrayLoadByte())
     } else
