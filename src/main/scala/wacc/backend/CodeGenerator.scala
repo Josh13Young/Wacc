@@ -65,11 +65,7 @@ object CodeGenerator {
         lvalue match {
           case Ident(a) => rvalueGen(rvalue) ++ ListBuffer(Store(Reg(8), getVar(a).get)) ++ ListBuffer(Move(Reg(0), Reg(8)))
           case ArrayElem(ident, exprList) =>
-            var isCharArray = false
-            currST.lookupAll(ident.name).get._1 match {
-              case ArrayST(CharST()) => isCharArray = true
-              case _ =>
-            }
+            val isCharArray = isCharArrayHelper(currST.lookupAll(ident.name).get._1)
             if (isCharArray) nonMainFunc += ("array_store_b" -> arrayStoreByte())
             else nonMainFunc += ("array_store" -> arrayStore())
             nonMainFunc += ("bounds_error" -> boundsError())
@@ -213,6 +209,16 @@ object CodeGenerator {
         else
           result
       case _ => ListBuffer()
+    }
+  }
+
+  // to find if a given node is an array of char recursively, used for storing
+  @tailrec
+  private def isCharArrayHelper(ast: TypeST): Boolean = {
+    ast match {
+      case ArrayST(CharST()) => true
+      case ArrayST(t) => isCharArrayHelper(t)
+      case _ => false
     }
   }
 
@@ -424,14 +430,14 @@ object CodeGenerator {
           result ++= exprGen(array.exprList(i), 8)
           result += StoreRegByte(Reg(8), RegOffset(Reg(12), Immediate(i)))
         }
-      // only dealt with array(int) so far
-      case ArrayST(IntST()) =>
+      // arrays of array
+      case ArrayST(_) =>
         result += Move(Reg(0), Immediate((array.exprList.length + 1) * WORD))
         result += BranchLink("malloc")
         result ++= arrayLiterLengthHelper(array.exprList.length)
         for (i <- array.exprList.indices) {
           array.exprList(i) match {
-            // cases like [a,b]
+            // cases like [a,b], where a and b are arrays
             case Ident(name) =>
               result += Load(Reg(8), getVar(name).get)
             case _ =>
