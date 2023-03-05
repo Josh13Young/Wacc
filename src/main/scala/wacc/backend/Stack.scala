@@ -1,8 +1,7 @@
 package wacc.backend
 
 import wacc.backend.Const._
-import wacc.backend.Instruction.{AddInstr, Instruction, Move, Pop, Push, Store, SubInstr}
-import wacc.backend.Operand.{FramePointer, Immediate, Operand, Reg, RegOffset, StackPointer}
+import wacc.backend.Instruction._
 import wacc.frontend.SymbolTable
 
 import scala.collection.mutable

@@ -4,7 +4,6 @@ import wacc.ast._
 import wacc.backend.Const._
 import wacc.backend.DataSeg._
 import wacc.backend.Instruction._
-import wacc.backend.Operand._
 import wacc.backend.Stack._
 import wacc.backend.Translator.translate
 import wacc.frontend.STType._

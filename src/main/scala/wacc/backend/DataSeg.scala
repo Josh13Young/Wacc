@@ -2,7 +2,6 @@ package wacc.backend
 
 import wacc.backend.Const._
 import wacc.backend.Instruction._
-import wacc.backend.Operand._
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
