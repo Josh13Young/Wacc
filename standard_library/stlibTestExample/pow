@@ -34,6 +34,6 @@ begin
   int ret = call pow(a, b) ;
   println ret ;
   int ret2 = call pow(b, c) ;
-  println ret
+  println ret2
 
 end

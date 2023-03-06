@@ -22,6 +22,6 @@ begin
   int ret = call min(a, b) ;
   println ret ;
   int ret2 = call min(b, c) ;
-  println ret
+  println ret2
 
 end

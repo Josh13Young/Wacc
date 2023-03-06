@@ -8,7 +8,7 @@
 begin
 
   int max(int a, int b) is
-    if a <= b
+    if a >= b
     then
       return a
     else
@@ -22,6 +22,6 @@ begin
   int ret = call max(a, b) ;
   println ret ;
   int ret2 = call max(b, c) ;
-  println ret
+  println ret2
 
 end
