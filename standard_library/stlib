@@ -54,6 +54,15 @@ begin
     fi
   end
 
+  int abs(int a) is
+    if a >= 0
+    then
+      return a
+    else
+      return -a
+    fi
+  end
+
   skip
 
 end
