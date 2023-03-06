@@ -1,29 +1,12 @@
-# wacc standard library
+# Output:
+# 9
+# 1
+#
 
 # Program:
 
 begin
 
-# Mathematical utilities
-
-  int min(int a, int b) is
-    if a <= b
-    then
-      return a
-    else
-      return b
-    fi
-  end
-    
-  int max(int a, int b) is
-    if a >= b
-    then
-      return a
-    else
-      return b
-    fi
-  end
-  
   # doesn't support negative powers
   int pow(int a, int b) is
     if b == 0
@@ -44,5 +27,13 @@ begin
       fi
     fi
   end
+
+  int a = 3 ;
+  int b = 2 ;
+  int c = 0 ;
+  int ret = call pow(a, b) ;
+  println ret ;
+  int ret2 = call pow(b, c) ;
+  println ret
 
 end

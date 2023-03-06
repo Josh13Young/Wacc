@@ -1,0 +1,27 @@
+# Output:
+# 3
+# 2
+#
+
+# Program:
+
+begin
+
+  int max(int a, int b) is
+    if a <= b
+    then
+      return a
+    else
+      return b
+    fi
+  end
+
+  int a = 3 ;
+  int b = 2 ;
+  int c = 2 ;
+  int ret = call max(a, b) ;
+  println ret ;
+  int ret2 = call max(b, c) ;
+  println ret
+
+end
