@@ -8,7 +8,7 @@ object Peephole {
     instructions match {
       case Nil => Nil
       case Store(dest, RegOffset(src, Immediate(imm))) :: xs =>
-        instructions.head :: locateLoadHelper(xs, dest, src, imm)
+        instructions.head :: removeStrAfterLdr(locateLoadHelper(xs, dest, src, imm))
       case _ => instructions.head :: removeStrAfterLdr(instructions.tail)
 
     }

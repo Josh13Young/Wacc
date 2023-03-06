@@ -99,7 +99,7 @@ object helperFunction extends AnyFlatSpec {
         val st = new SymbolTable(None)
         if (x.check(st)(seb)) {
           CodeGenerator.currST = st
-          val code = generateString(generate(x))
+          val code = generateString(generate(x).toList)
           val pw = new PrintWriter("temp.s")
           pw.write(code)
           pw.close()
