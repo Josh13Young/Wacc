@@ -1,0 +1,29 @@
+# Output:
+# 2
+# 9
+#
+
+# Program:
+
+begin
+
+  int mod(int a, int b) is
+    if a <= b
+    then 
+      return a
+    else
+      a = a - b ;
+      int ret = call mod(a, b) ;
+      return ret
+    fi
+  end
+
+  int a = 20 ;
+  int b = 3 ;
+  int c = 11 ;
+  int ret = call mod(a, b) ;
+  println ret ;
+  int ret2 = call mod(a, c) ;
+  println ret2
+
+end

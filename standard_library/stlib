@@ -63,6 +63,17 @@ begin
     fi
   end
 
+  int mod(int a, int b) is
+    if a <= b
+    then 
+      return a
+    else
+      a = a - b ;
+      int ret = call mod(a, b) ;
+      return ret
+    fi
+  end
+
   skip
 
 end
