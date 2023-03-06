@@ -5,18 +5,18 @@ import wacc.backend.Instruction._
 object Peephole {
 
   def optimise(instructions: List[Instruction]): List[Instruction] = {
-    removeZeroStackPointer(removeStrAfterLdr(instructions))
+    removeZeroStackPointer(removeLdrAfterStr(instructions))
   }
 
   private def removeZeroStackPointer(instructions: List[Instruction]): List[Instruction] =
     instructions.filterNot(x => x == AddInstr(StackPointer(), StackPointer(), Immediate(0)) || x == SubInstr(StackPointer(), StackPointer(), Immediate(0)))
 
-  private def removeStrAfterLdr(instructions: List[Instruction]): List[Instruction] = {
+  private def removeLdrAfterStr(instructions: List[Instruction]): List[Instruction] = {
     instructions match {
       case Nil => Nil
       case Store(dest, RegOffset(src, Immediate(imm))) :: xs =>
-        instructions.head :: removeStrAfterLdr(locateLoadHelper(xs, dest, src, imm))
-      case _ => instructions.head :: removeStrAfterLdr(instructions.tail)
+        instructions.head :: removeLdrAfterStr(locateLoadHelper(xs, dest, src, imm))
+      case _ => instructions.head :: removeLdrAfterStr(instructions.tail)
 
     }
   }
@@ -24,11 +24,91 @@ object Peephole {
   private def locateLoadHelper(xs: List[Instruction], dest: Register, src: Register, imm: Int): List[Instruction] = {
     xs match {
       case Nil => Nil
-      case Load(dest2, RegOffset(src2, Immediate(imm2))) :: ys =>
-        if (equalReg(dest, dest2) && equalReg(src, src2) && imm == imm2) {
-          removeStrAfterLdr(ys)
+      case Store(dest2, _) :: _ =>
+        if (equalReg(dest, dest2)) {
+          xs
         } else {
           xs.head :: locateLoadHelper(xs.tail, dest, src, imm)
+        }
+      case StoreRegByte(dest2, _) :: _ =>
+        if (equalReg(dest, dest2)) {
+          xs
+        } else {
+          xs.head :: locateLoadHelper(xs.tail, dest, src, imm)
+        }
+      case Move(dest2, _) :: _ =>
+        if (equalReg(dest, dest2)) {
+          xs
+        } else {
+          xs.head :: locateLoadHelper(xs.tail, dest, src, imm)
+        }
+      case MoveCond(_, dest2, _) :: _ =>
+        if (equalReg(dest, dest2)) {
+          xs
+        } else {
+          xs.head :: locateLoadHelper(xs.tail, dest, src, imm)
+        }
+      case LoadRegSignedByte(dest2, _) :: _ =>
+        if (equalReg(dest, dest2)) {
+          xs
+        } else {
+          xs.head :: locateLoadHelper(xs.tail, dest, src, imm)
+        }
+      case AddInstr(dest2, _, _) :: _ =>
+        if (equalReg(dest, dest2)) {
+          xs
+        } else {
+          xs.head :: locateLoadHelper(xs.tail, dest, src, imm)
+        }
+      case SubInstr(dest2, _, _) :: _ =>
+        if (equalReg(dest, dest2)) {
+          xs
+        } else {
+          xs.head :: locateLoadHelper(xs.tail, dest, src, imm)
+        }
+      case AndInstr(dest2, _, _) :: _ =>
+        if (equalReg(dest, dest2)) {
+          xs
+        } else {
+          xs.head :: locateLoadHelper(xs.tail, dest, src, imm)
+        }
+      case OrInstr(dest2, _, _) :: _ =>
+        if (equalReg(dest, dest2)) {
+          xs
+        } else {
+          xs.head :: locateLoadHelper(xs.tail, dest, src, imm)
+        }
+      case Xor(dest2, _, _) :: _ =>
+        if (equalReg(dest, dest2)) {
+          xs
+        } else {
+          xs.head :: locateLoadHelper(xs.tail, dest, src, imm)
+        }
+      case RevSub(dest2, _, _) :: _ =>
+        if (equalReg(dest, dest2)) {
+          xs
+        } else {
+          xs.head :: locateLoadHelper(xs.tail, dest, src, imm)
+        }
+      case Pop(regs) :: _  =>
+        if (regs.contains(dest)) {
+          xs
+        } else {
+          xs.head :: locateLoadHelper(xs.tail, dest, src, imm)
+        }
+      case BranchLink(_) :: _ =>
+        xs
+      case BranchLinkWithCond(_, _) :: _ =>
+        xs
+      case Label(_) :: _ =>
+        xs
+      case Directive(_) :: _ =>
+        xs
+      case Load(dest2, RegOffset(src2, Immediate(imm2))) :: ys =>
+        if (equalReg(dest, dest2) && equalReg(src, src2) && imm == imm2) {
+          ys
+        } else {
+          xs
         }
       case _ => xs.head :: locateLoadHelper(xs.tail, dest, src, imm)
     }
