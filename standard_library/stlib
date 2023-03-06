@@ -45,4 +45,18 @@ begin
     fi
   end
 
+  int fact(int a) is
+    if a > 0
+    then
+      int b = a - 1 ;
+      int c = call fact(b) ;
+      int ret = a * c ;
+      return ret
+    else
+      return 1
+    fi
+  end
+
+  skip
+
 end
