@@ -573,9 +573,9 @@ object CodeGenerator {
         binOpsGen(reg, expr1, expr2) ++ mul ++ overflow
       case Div(expr1, expr2) =>
         val div = ListBuffer(
-          Move(Reg(0), Reg(reg)),
           Move(Reg(1), Reg(reg + 1)),
           Compare(Reg(1), Immediate(0)),
+          Move(Reg(0), Reg(reg)),
           BranchLinkWithCond(Equal, "divide_by_zero_error"),
           BranchLink("__aeabi_idivmod"),
           Move(Reg(reg), Reg(0))
@@ -584,9 +584,9 @@ object CodeGenerator {
         binOpsGen(reg, expr1, expr2) ++ div
       case Mod(expr1, expr2) =>
         val mod = ListBuffer(
-          Move(Reg(0), Reg(reg)),
           Move(Reg(1), Reg(reg + 1)),
           Compare(Reg(1), Immediate(0)),
+          Move(Reg(0), Reg(reg)),
           BranchLinkWithCond(Equal, "divide_by_zero_error"),
           BranchLink("__aeabi_idivmod"),
           Move(Reg(reg), Reg(1))

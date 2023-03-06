@@ -5,7 +5,29 @@ import wacc.backend.Instruction._
 object Peephole {
 
   def optimise(instructions: List[Instruction]): List[Instruction] = {
-    removeZeroStackPointer(removeLdrAfterStr(instructions))
+    removeMovToRegZero(removeZeroStackPointer(removeLdrAfterStr(instructions)))
+  }
+
+  private def removeMovToRegZero(instructions: List[Instruction]): List[Instruction] = {
+    instructions match {
+      case Nil => Nil
+      case Move(dest, src) :: xs =>
+        src match {
+          case Reg(8) =>
+            xs.head match {
+              case BranchLink(_) | BranchLinkWithCond(_, _) =>
+                instructions.head :: removeMovToRegZero(instructions.tail)
+              case _ =>
+                if (equalReg(dest, Reg(0))) {
+                  removeMovToRegZero(xs)
+                } else {
+                  instructions.head :: removeMovToRegZero(instructions.tail)
+                }
+            }
+          case _ => instructions.head :: removeMovToRegZero(instructions.tail)
+        }
+      case _ => instructions.head :: removeMovToRegZero(instructions.tail)
+    }
   }
 
   private def removeZeroStackPointer(instructions: List[Instruction]): List[Instruction] =
@@ -90,7 +112,7 @@ object Peephole {
         } else {
           xs.head :: locateLoadHelper(xs.tail, dest, src, imm)
         }
-      case Pop(regs) :: _  =>
+      case Pop(regs) :: _ =>
         if (regs.contains(dest)) {
           xs
         } else {
