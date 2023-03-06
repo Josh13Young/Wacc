@@ -16,7 +16,7 @@ import scala.collection.mutable.ListBuffer
 object CodeGenerator {
 
   // generate list of instructions into assembly as string
-  def generateString(listBuffer: ListBuffer[Instruction]): String = {
+  def generateString(listBuffer: List[Instruction]): String = {
     listBuffer.map(instr => translate(instr)).mkString ++ "\n"
   }
 
