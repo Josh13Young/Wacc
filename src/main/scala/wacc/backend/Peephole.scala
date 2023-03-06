@@ -1,10 +1,17 @@
 package wacc.backend
 
-import wacc.backend.Instruction.{FramePointer, Immediate, Instruction, LinkRegister, Load, ProgramCounter, Reg, RegOffset, Register, StackPointer, Store}
+import wacc.backend.Instruction._
 
 object Peephole {
 
-  def removeStrAfterLdr(instructions: List[Instruction]): List[Instruction] = {
+  def optimise(instructions: List[Instruction]): List[Instruction] = {
+    removeZeroStackPointer(removeStrAfterLdr(instructions))
+  }
+
+  private def removeZeroStackPointer(instructions: List[Instruction]): List[Instruction] =
+    instructions.filterNot(x => x == AddInstr(StackPointer(), StackPointer(), Immediate(0)) || x == SubInstr(StackPointer(), StackPointer(), Immediate(0)))
+
+  private def removeStrAfterLdr(instructions: List[Instruction]): List[Instruction] = {
     instructions match {
       case Nil => Nil
       case Store(dest, RegOffset(src, Immediate(imm))) :: xs =>

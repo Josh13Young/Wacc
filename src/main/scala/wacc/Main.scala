@@ -3,7 +3,7 @@ package wacc
 import parsley.{Failure, Success}
 import wacc.backend.CodeGenerator
 import wacc.backend.CodeGenerator.{generate, generateString}
-import wacc.backend.Peephole.removeStrAfterLdr
+import wacc.backend.Peephole.optimise
 import wacc.error.WaccErrorBuilder
 import wacc.frontend.{SymbolTable, parser}
 
@@ -23,7 +23,7 @@ object Main {
         if (x.check(st)(seb)) {
           println("Program is semantically correct")
           CodeGenerator.currST = st
-          val code = generateString(removeStrAfterLdr(generate(x).toList))
+          val code = generateString(optimise(generate(x).toList))
           val fileName = args.head.split("/").last.split("\\.").head
           val pw = new PrintWriter(fileName + ".s")
           pw.write(code)
