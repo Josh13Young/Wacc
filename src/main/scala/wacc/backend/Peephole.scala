@@ -5,7 +5,28 @@ import wacc.backend.Instruction._
 object Peephole {
 
   def optimise(instructions: List[Instruction]): List[Instruction] = {
-    removeMovToRegZero(removeZeroStackPointer(removeLdrAfterStr(instructions)))
+    removeMovAfterLdr(removeMovToRegZero(removeZeroStackPointer(removeLdrAfterStr(instructions))))
+  }
+
+  private def removeMovAfterLdr(instructions: List[Instruction]): List[Instruction] = {
+    instructions match {
+      case Nil => Nil
+      case Load(dest, op) :: xs =>
+        xs.head match {
+          case Move (dest2, op2) =>
+            op2 match {
+              case reg: Register =>
+                if (equalReg(dest, reg)) {
+                  Load(dest2, op) :: removeMovAfterLdr(xs.tail)
+                } else {
+                  instructions.head :: removeMovAfterLdr(instructions.tail)
+                }
+              case _ => instructions.head :: removeMovAfterLdr(instructions.tail)
+            }
+          case _ => instructions.head :: removeMovAfterLdr(instructions.tail)
+        }
+      case _ => instructions.head :: removeMovAfterLdr(instructions.tail)
+    }
   }
 
   private def removeMovToRegZero(instructions: List[Instruction]): List[Instruction] = {
