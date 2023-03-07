@@ -493,11 +493,9 @@ object CodeGenerator {
   // helper function for loading array element using array_load function in .data
   private def arrayElemLoadHelper(label: String): ListBuffer[Instruction] = {
     ListBuffer(
-      Push(List(Reg(3))),
       Move(Reg(3), Reg(8)),
       BranchLink(label),
-      Move(Reg(8), Reg(3)),
-      Pop(List(Reg(3)))
+      Move(Reg(8), Reg(3))
     )
   }
 
