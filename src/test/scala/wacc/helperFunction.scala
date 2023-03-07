@@ -6,6 +6,7 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import parsley.{Failure, Success}
 import wacc.backend.CodeGenerator
 import wacc.backend.CodeGenerator.{generate, generateString}
+import wacc.backend.Peephole.optimise
 import wacc.frontend.{SymbolTable, parser}
 
 import java.io.{ByteArrayOutputStream, File, PrintWriter}
@@ -90,7 +91,7 @@ object helperFunction extends AnyFlatSpec {
     }
   }
 
-  def assemblyRunner(inputList: List[String]): (Int, String) = {
+  def assemblyRunner(inputList: List[String], isOptimise: Boolean = false): (Int, String) = {
     val input = inputList.mkString("\n")
     parser.parser.parse(input) match {
       case Success(x) =>
@@ -99,7 +100,11 @@ object helperFunction extends AnyFlatSpec {
         val st = new SymbolTable(None)
         if (x.check(st)(seb)) {
           CodeGenerator.currST = st
-          val code = generateString(generate(x))
+          var generatedList = generate(x).toList
+          if (isOptimise) {
+            generatedList = optimise(generatedList)
+          }
+          val code = generateString(generatedList)
           val pw = new PrintWriter("temp.s")
           pw.write(code)
           pw.close()
@@ -121,11 +126,11 @@ object helperFunction extends AnyFlatSpec {
     }
   }
 
-  def assemblyRunFolder(dir: String): Unit = {
+  def assemblyRunFolder(dir: String, isOptimise: Boolean = false): Unit = {
     val files = getListOfFiles(dir)
     for (file <- files) {
       val inputList = getInputList(file)
-      val output = assemblyRunner(inputList)
+      val output = assemblyRunner(inputList, isOptimise)
       val expectedExitValue =
         getExpectedExitValue(inputList) match {
           case Some(x) => x

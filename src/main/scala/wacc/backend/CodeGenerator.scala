@@ -16,7 +16,7 @@ import scala.collection.mutable.ListBuffer
 object CodeGenerator {
 
   // generate list of instructions into assembly as string
-  def generateString(listBuffer: ListBuffer[Instruction]): String = {
+  def generateString(listBuffer: List[Instruction]): String = {
     listBuffer.map(instr => translate(instr)).mkString ++ "\n"
   }
 
@@ -478,7 +478,6 @@ object CodeGenerator {
     } else
       nonMainFunc += (label -> arrayLoad())
     // for arrayLoad : array ptr in r3, index in r10, return value in r3 (r3 bit handled in arrayElemLoadHelper)
-    result += Move(Reg(12), StackPointer())
     result ++= exprGen(array.exprList.head, 10)
     result += Load(Reg(8), getVar(array.ident.name).get)
     result ++= arrayElemLoadHelper(label)
@@ -573,9 +572,9 @@ object CodeGenerator {
         binOpsGen(reg, expr1, expr2) ++ mul ++ overflow
       case Div(expr1, expr2) =>
         val div = ListBuffer(
-          Move(Reg(0), Reg(reg)),
           Move(Reg(1), Reg(reg + 1)),
           Compare(Reg(1), Immediate(0)),
+          Move(Reg(0), Reg(reg)),
           BranchLinkWithCond(Equal, "divide_by_zero_error"),
           BranchLink("__aeabi_idivmod"),
           Move(Reg(reg), Reg(0))
@@ -584,9 +583,9 @@ object CodeGenerator {
         binOpsGen(reg, expr1, expr2) ++ div
       case Mod(expr1, expr2) =>
         val mod = ListBuffer(
-          Move(Reg(0), Reg(reg)),
           Move(Reg(1), Reg(reg + 1)),
           Compare(Reg(1), Immediate(0)),
+          Move(Reg(0), Reg(reg)),
           BranchLinkWithCond(Equal, "divide_by_zero_error"),
           BranchLink("__aeabi_idivmod"),
           Move(Reg(reg), Reg(1))

@@ -46,4 +46,13 @@ codegen-test:
   script:
     - sbt "testOnly wacc.CodeGenTest"
 
+optimise-test:
+  tags:
+    - group32
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  script:
+    - sbt "testOnly wacc.OptimiseTest"        
+
 
