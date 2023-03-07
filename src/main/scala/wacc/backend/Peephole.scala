@@ -5,8 +5,86 @@ import wacc.backend.Instruction._
 object Peephole {
 
   def optimise(instructions: List[Instruction]): List[Instruction] = {
-    removeMovAfterLdr(removeMovToRegZero(removeZeroStackPointer(removeLdrAfterStr(instructions))))
+    removeBinOpPushPop(removeMovAfterMov(removeMovAfterLdr(removeMovToRegZero(removeZeroStackPointer(removeLdrAfterStr(instructions))))))
   }
+
+  /*
+  Remove the following push / pop wrapped around:
+  push {r8}
+  ldr rX, blah (X != 8)
+  pop {r8}
+
+  Only effective after running removeMovAfterLdr (so that the content inside push/pop is doesn't use r8
+   */
+  private def removeBinOpPushPop(instructions: List[Instruction]): List[Instruction] = {
+    instructions match {
+      case Nil => Nil
+      case Push(List(Reg(8))) :: xs =>
+        xs.head match {
+          case Load(reg, _) =>
+            xs.tail match {
+              case Pop(List(Reg(8))) :: ys =>
+                if (!equalReg(reg, Reg(8))) {
+                  xs.head :: removeBinOpPushPop(ys)
+                } else {
+                  instructions.head :: removeBinOpPushPop(instructions.tail)
+                }
+              case _ => instructions.head :: removeBinOpPushPop(instructions.tail)
+            }
+          case Move(reg, _) =>
+            xs.tail match {
+              case Pop(List(Reg(8))) :: ys =>
+                if (!equalReg(reg, Reg(8))) {
+                  xs.head :: removeBinOpPushPop(ys)
+                } else {
+                  instructions.head :: removeBinOpPushPop(instructions.tail)
+                }
+              case _ => instructions.head :: removeBinOpPushPop(instructions.tail)
+            }
+          case _ => instructions.head :: removeBinOpPushPop(instructions.tail)
+        }
+      case _ => instructions.head :: removeBinOpPushPop(instructions.tail)
+    }
+  }
+
+  /*
+  Change the following pattern:
+  mov rX, blah
+  mov rY, rX
+
+  into:
+  mov rY, blah
+   */
+
+  private def removeMovAfterMov(instructions: List[Instruction]): List[Instruction] = {
+    instructions match {
+      case Nil => Nil
+      case Move(dest, op) :: xs =>
+        xs.head match {
+          case Move(dest2, op2) =>
+            op2 match {
+              case reg: Register =>
+                if (equalReg(dest, reg)) {
+                  Move(dest2, op) :: removeMovAfterMov(xs.tail)
+                } else {
+                  instructions.head :: removeMovAfterMov(instructions.tail)
+                }
+              case _ => instructions.head :: removeMovAfterMov(instructions.tail)
+            }
+          case _ => instructions.head :: removeMovAfterMov(instructions.tail)
+        }
+      case _ => instructions.head :: removeMovAfterMov(instructions.tail)
+    }
+  }
+
+  /*
+  Dealt with the following pattern:
+
+  ldr rX, blah
+  mov rY, rX
+
+  change into ldr rY, blah
+   */
 
   private def removeMovAfterLdr(instructions: List[Instruction]): List[Instruction] = {
     instructions match {
@@ -28,6 +106,13 @@ object Peephole {
       case _ => instructions.head :: removeMovAfterLdr(instructions.tail)
     }
   }
+
+  /*
+  Remove the following pattern:
+  mov r0, r8
+
+  r0 is only used before calling a branched function, so preserve before branched call
+   */
 
   private def removeMovToRegZero(instructions: List[Instruction]): List[Instruction] = {
     instructions match {
@@ -51,9 +136,20 @@ object Peephole {
     }
   }
 
+  /*
+  Remove add/sub to stack pointer with 0 offset
+  add/sub sp, sp, #0
+   */
+
   private def removeZeroStackPointer(instructions: List[Instruction]): List[Instruction] =
     instructions.filterNot(x => x == AddInstr(StackPointer(), StackPointer(), Immediate(0)) || x == SubInstr(StackPointer(), StackPointer(), Immediate(0)))
 
+  /*
+  Remove the following ldr instruction:
+  str rX, [rY, #imm]
+  blah blah blah (doesn't modify rX)
+  ldr rX, [rY, #imm]
+   */
   private def removeLdrAfterStr(instructions: List[Instruction]): List[Instruction] = {
     instructions match {
       case Nil => Nil
