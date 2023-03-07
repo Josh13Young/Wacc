@@ -478,7 +478,6 @@ object CodeGenerator {
     } else
       nonMainFunc += (label -> arrayLoad())
     // for arrayLoad : array ptr in r3, index in r10, return value in r3 (r3 bit handled in arrayElemLoadHelper)
-    result += Move(Reg(12), StackPointer())
     result ++= exprGen(array.exprList.head, 10)
     result += Load(Reg(8), getVar(array.ident.name).get)
     result ++= arrayElemLoadHelper(label)

@@ -11,7 +11,7 @@ object Peephole {
   /*
   Remove the following push / pop wrapped around:
   push {r8}
-  ldr rX, blah (X != 8)
+  ldr rX, blah (X != 8) or mov rX, blah (X != 8)
   pop {r8}
 
   Only effective after running removeMovAfterLdr (so that the content inside push/pop is doesn't use r8
@@ -252,6 +252,8 @@ object Peephole {
       case _ => xs.head :: locateLoadHelper(xs.tail, dest, src, imm)
     }
   }
+
+  //equalReg checks if two registers are equal
 
   private def equalReg(reg1: Register, reg2: Register): Boolean = {
     (reg1, reg2) match {
