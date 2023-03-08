@@ -10,8 +10,9 @@
 
 begin
 
-  int isEven(int a) is
-    if (call mod(a, 2)) == 0
+  bool isEven(int a) is
+    int b = call mod(a, 2) ;
+    if b == 0
     then
       return true
     else
@@ -21,11 +22,19 @@ begin
 
   int mod(int a, int b) is
     int c = call abs(a) ;
-    if c <= b
+    int d = call abs(b) ;
+    if c < d
     then 
-      return c
+      if b > 0
+      then 
+        int ret = c;
+        return ret
+      else
+        int ret = c * -1 ;
+        return ret
+      fi
     else
-      c = c - b ;
+      c = c - d ;
       int ret = call mod(c, b) ;
       return ret
     fi
@@ -40,14 +49,21 @@ begin
     fi
   end
 
-  int a = 4 ;
+  int a = 8 ;
   int b = 0 ;
   int c = -2 ;
   int d = 3 ;
-  int e = -2 ;
-  int ret = call abs(a) ;
+  int e = -3 ;
+
+  bool ret = call isEven(a) ;
   println ret ;
-  int ret2 = call abs(b) ;
-  println ret2
+  bool ret2 = call isEven(b) ;
+  println ret2 ;
+  bool ret3 = call isEven(c) ;
+  println ret3 ;
+  bool ret4 = call isEven(d) ;
+  println ret4 ;
+  bool ret5 = call isEven(e) ;
+  println ret5
 
 end
