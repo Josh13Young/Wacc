@@ -43,7 +43,7 @@ object parser {
   private lazy val arrayType = precedence[Type](baseType | pairType)(
     Ops(Postfix)(ArrayType <# "[" ~> "]"))
   private lazy val pairType = PairType("pair" ~> "(" ~> pairElemType, "," ~> pairElemType <~ ")")
-  private lazy val pairElemType: Parsley[Type] = NestedPairType <# "pair" |
+  private lazy val pairElemType: Parsley[Type] = pairType |
     attempt(baseType <~ notFollowedBy("[")) | arrayType
 
   // <expr>
