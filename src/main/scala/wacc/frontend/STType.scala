@@ -29,8 +29,8 @@ object STType {
     override def toString: String = "pair(" + t1.toString + ", " + t2.toString + ")"
   }
 
-  case class AnyST() extends TypeST {
-    override def toString: String = "any"
+  case class NullST() extends TypeST {
+    override def toString: String = "null"
   }
 
   case class VoidST() extends TypeST {
@@ -45,8 +45,8 @@ object STType {
       case (StringST(), StringST()) => StringST()
       case (ArrayST(t1), ArrayST(t2)) => ArrayST(typeCompare(t1, t2))
       case (PairST(t11, t12), PairST(t21, t22)) => PairST(typeCompare(t11, t21), typeCompare(t12, t22))
-      case (AnyST(), _) => AnyST()
-      case (_, AnyST()) => AnyST()
+      case (NullST(), _) => NullST()
+      case (_, NullST()) => NullST()
       case _ => VoidST()
     }
 

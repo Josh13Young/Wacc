@@ -242,6 +242,8 @@ object ast {
       t match {
         case IntST() => lvalue.check(st)
         case CharST() => lvalue.check(st)
+        // although null is not int or char, catch this error in runtime rather than here
+        case NullST() => lvalue.check(st)
         case _ =>
           StatError(pos, "Read", Set("int", "char"), t.toString)
           false
@@ -558,8 +560,8 @@ object ast {
 
     override def getType(st: SymbolTable)(implicit errors: SemanticError): TypeST = {
       if (exprList.isEmpty) {
-        arrayType = AnyST()
-        ArrayST(AnyST())
+        arrayType = NullST()
+        ArrayST(NullST())
       } else {
         val exprType = exprList.head.getType(st)
         arrayType = exprType
@@ -686,14 +688,6 @@ object ast {
 
   object PairType extends ParserBridgePos2[Type, Type, PairType]
 
-  case class NullType()(val pos: (Int, Int)) extends Type {
-    override def check(st: SymbolTable): Boolean = true
-
-    override def getType(st: SymbolTable): TypeST = AnyST()
-  }
-
-  object NullType extends ParserBridgePos0[NullType]
-
   // <EXPR>
   sealed trait Expr extends Rvalue {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean
@@ -736,7 +730,7 @@ object ast {
   case class PairLiter()(val pos: (Int, Int)) extends Expr {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = true
 
-    def getType(st: SymbolTable)(implicit errors: SemanticError): TypeST = PairST(AnyST(), AnyST())
+    def getType(st: SymbolTable)(implicit errors: SemanticError): TypeST = PairST(NullST(), NullST())
   }
 
   object PairLiter extends ParserBridgePos0[PairLiter]

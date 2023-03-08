@@ -420,7 +420,7 @@ object CodeGenerator {
   private def arrayLiterGen(array: ArrayLiter): ListBuffer[Instruction] = {
     val result = ListBuffer[Instruction]()
     array.arrayType match {
-      case IntST() | StringST() | PairST(_, _) | AnyST() =>
+      case IntST() | StringST() | PairST(_, _) | NullST() =>
         // extra + 1 for the length of the array
         result += Move(Reg(0), Immediate((array.exprList.length + 1) * WORD))
         result += BranchLink("malloc")
