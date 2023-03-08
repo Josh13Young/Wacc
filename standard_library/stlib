@@ -64,12 +64,13 @@ begin
   end
 
   int mod(int a, int b) is
-    if a <= b
+    int c = call abs(a) ;
+    if c <= b
     then 
-      return a
+      return c
     else
-      a = a - b ;
-      int ret = call mod(a, b) ;
+      c = c - b ;
+      int ret = call mod(c, b) ;
       return ret
     fi
   end
