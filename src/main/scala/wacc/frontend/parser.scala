@@ -44,7 +44,7 @@ object parser {
     Ops(Postfix)(ArrayType <# "[" ~> "]"))
   private lazy val pairType = PairType("pair" ~> "(" ~> pairElemType, "," ~> pairElemType <~ ")")
   private lazy val pairElemType: Parsley[Type] = pairType |
-    attempt(baseType <~ notFollowedBy("[")) | arrayType
+    attempt(baseType <~ notFollowedBy("[")) | arrayType | NullType <# "null"
 
   // <expr>
   private lazy val atom: Parsley[Expr] = intLiter | "(".label("open parenthesis") ~> expr <~ ")".label("close parenthesis") | attempt(arrayElem) | ident |

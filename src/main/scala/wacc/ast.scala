@@ -686,13 +686,13 @@ object ast {
 
   object PairType extends ParserBridgePos2[Type, Type, PairType]
 
-  case class NestedPairType()(val pos: (Int, Int)) extends Type {
+  case class NullType()(val pos: (Int, Int)) extends Type {
     override def check(st: SymbolTable): Boolean = true
 
-    override def getType(st: SymbolTable): TypeST = PairST(AnyST(), AnyST())
+    override def getType(st: SymbolTable): TypeST = AnyST()
   }
 
-  object NestedPairType extends ParserBridgePos0[NestedPairType]
+  object NullType extends ParserBridgePos0[NullType]
 
   // <EXPR>
   sealed trait Expr extends Rvalue {
