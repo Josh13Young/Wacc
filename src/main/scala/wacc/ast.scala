@@ -202,10 +202,6 @@ object ast {
 
   case class Assign(lvalue: Lvalue, rvalue: Rvalue)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
-      if (isNestedPair(lvalue) && isNestedPair(rvalue)) {
-        WaccSemanticErrorBuilder(pos, "Nested pair, unknown type, erasure")
-        return false
-      }
       if (!lvalue.check(st)) {
         return false
       }
@@ -220,17 +216,6 @@ object ast {
         return false
       }
       true
-    }
-
-    private def isNestedPair(pair: ASTNode): Boolean = {
-      pair match {
-        case FstElem(FstElem(_)) => true
-        case FstElem(SndElem(_)) => true
-        case SndElem(FstElem(_)) => true
-        case SndElem(SndElem(_)) => true
-        case _ =>
-          false
-      }
     }
   }
 
