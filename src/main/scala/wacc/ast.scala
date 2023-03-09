@@ -897,6 +897,10 @@ object ast {
       if (!expr1.check(st) || !expr2.check(st)) return false
       val t1 = expr1.getType(st)
       val t2 = expr2.getType(st)
+      if (!checkDivByZero(expr2, st)) {
+        WaccSemanticErrorBuilder(pos, "Divide by zero error")
+        return false
+      }
       if (t1 != IntST() || t2 != IntST()) {
         BinaryOperatorError(pos, "/", Set("int"), t1.toString, t2.toString)
         return false
@@ -907,12 +911,25 @@ object ast {
     def getType(st: SymbolTable)(implicit errors: SemanticError): TypeST = IntST()
   }
 
+  @tailrec
+  private def checkDivByZero(expr: ASTNode, st: SymbolTable): Boolean = expr match {
+    case IntLiter(0) =>
+      false
+    case Ident(name) =>
+      checkDivByZero(st.lookupAll(name).get._2, st)
+    case _ => true
+  }
+
   object Div extends ParserBridgePos2[Expr, Expr, Div]
 
   case class Mod(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       val t1 = expr1.getType(st)
       val t2 = expr2.getType(st)
+      if (!checkDivByZero(expr2, st)) {
+        WaccSemanticErrorBuilder(pos, "Mod by zero error")
+        return false
+      }
       if (t1 != IntST() || t2 != IntST()) {
         BinaryOperatorError(pos, "%", Set("int"), t1.toString, t2.toString)
         return false
