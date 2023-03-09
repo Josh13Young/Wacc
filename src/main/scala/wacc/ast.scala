@@ -8,6 +8,7 @@ import wacc.error.WaccSemanticErrorBuilder
 import wacc.error.WaccSemanticErrorBuilder._
 import wacc.frontend.SymbolTable
 
+import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 
 object ast {
@@ -456,13 +457,9 @@ object ast {
         }
         expr.check(st)
       }
+      println(st)
       // previous checks ensure that there is an entry in the symbol table
-      var exprListST: List[Expr]  = st.lookupAll(ident.name).get._2 match {
-        // Assign a placeholder expr NothingLiter to empty arrays so that there is 1 element inside
-        case ArrayLiter(List()) => List(NothingLiter()(pos))
-        case ArrayLiter(exprList) => exprList
-        case _ => List() // not reached
-      }
+      var exprListST: List[Expr]  = findExprList(st.lookupAll(ident.name).get._2, st)
       for (expr <- exprList) {
         val index = expr match {
           case IntLiter(value) => value
@@ -475,16 +472,35 @@ object ast {
         if (result) {
           exprListST(index) match {
             case Ident(name) =>
-              exprListST = st.lookupAll(name).get._2 match {
-                case ArrayLiter(List()) => List(NothingLiter()(pos))
-                case ArrayLiter(exprList) => exprList
-                case _ => List() // not reached
-              }
+              exprListST = findExprList(st.lookupAll(ident.name).get._2, st)
             case _ => // reached
           }
         }
       }
       result
+    }
+
+    @tailrec
+    private def findExprList(node: ASTNode, st: SymbolTable): List[Expr] = node match {
+      case ArrayLiter(List()) => List(NothingLiter()(pos))
+      case ArrayLiter(exprList) => exprList
+      case FstElem(Ident(name)) =>
+        st.lookupAll(name).get._2 match {
+          case NewPair(Ident(fst), _) =>
+            findExprList(st.lookupAll(fst).get._2, st)
+          case NewPair(fst, _) =>
+            findExprList(fst, st)
+          case _ => List() // not reached
+        }
+      case SndElem(Ident(name)) =>
+        st.lookupAll(name).get._2 match {
+          case NewPair(_, Ident(snd)) =>
+            findExprList(st.lookupAll(snd).get._2, st)
+          case NewPair(_, snd) =>
+            findExprList(snd, st)
+          case _ => List() // not reached
+        }
+      case _ => List() // not reached
     }
 
     override def getType(st: SymbolTable)(implicit errors: SemanticError): TypeST = {
