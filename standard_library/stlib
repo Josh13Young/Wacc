@@ -103,6 +103,24 @@ begin
     fi
   end
 
+  int cat() is
+    println("^   ^") ;
+    println("( o.o )") ;
+    println("> ^ <") ;
+
+    return 0
+  end
+
+  int sum(int[] arr) is
+    int count = 0 ;
+    int i = 0 ;
+    while (i < len(arr)) do
+      count = count + arr[i] ;
+      i = i + 1
+      done ;
+    return count
+  end
+
   skip
 
 end
