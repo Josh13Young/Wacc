@@ -457,7 +457,6 @@ object ast {
         }
         expr.check(st)
       }
-      println(st)
       // previous checks ensure that there is an entry in the symbol table
       var exprListST: List[Expr]  = findExprList(st.lookupAll(ident.name).get._2, st)
       for (expr <- exprList) {
@@ -472,7 +471,7 @@ object ast {
         if (result) {
           exprListST(index) match {
             case Ident(name) =>
-              exprListST = findExprList(st.lookupAll(ident.name).get._2, st)
+              exprListST = findExprList(st.lookupAll(name).get._2, st)
             case _ => // reached
           }
         }
