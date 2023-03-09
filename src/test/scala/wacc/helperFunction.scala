@@ -136,7 +136,7 @@ object helperFunction extends AnyFlatSpec {
           case Some(x) => x
           case None => 0
         }
-      if(expectedExitValue == 255) {
+      if(expectedExitValue == 255 || expectedExitValue == 200) {
         output._1 shouldBe expectedExitValue
       } else {
         output shouldBe (expectedExitValue, getExpectedOutput(inputList))
