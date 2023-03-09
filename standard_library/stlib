@@ -111,6 +111,8 @@ begin
     return 0
   end
 
+# array utilities
+
   int sum(int[] arr) is
     int count = 0 ;
     int i = 0 ;
