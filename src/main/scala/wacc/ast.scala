@@ -3,9 +3,9 @@ package wacc
 import parsley.Parsley
 import parsley.implicits.zipped.{Zipped2, Zipped3, Zipped4}
 import parsley.position.pos
-import wacc.frontend.STType._
 import wacc.error.WaccSemanticErrorBuilder
 import wacc.error.WaccSemanticErrorBuilder._
+import wacc.frontend.STType._
 import wacc.frontend.SymbolTable
 
 import scala.annotation.tailrec
@@ -366,6 +366,7 @@ object ast {
 
   case class While(cond: Expr, stat: List[Stat])(val pos: (Int, Int)) extends Stat {
     var symbolTable = new SymbolTable(None)
+
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       if (!cond.check(st)) {
         return false
@@ -391,6 +392,7 @@ object ast {
     var hasReturnOrExit = false
 
     var symbolTable = new SymbolTable(None)
+
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       val beginST = new SymbolTable(Option(st))
       beginST.isFunctionBody = st.isFunctionBody
@@ -463,7 +465,7 @@ object ast {
         expr.check(st)
       }
       // previous checks ensure that there is an entry in the symbol table
-      var exprListST: List[Expr]  = findExprList(st.lookupAll(ident.name).get._2, st)
+      var exprListST: List[Expr] = findExprList(st.lookupAll(ident.name).get._2, st)
       for (expr <- exprList) {
         val index = expr match {
           case IntLiter(value) => value
@@ -583,6 +585,7 @@ object ast {
   // <ARRAY-LITER>
   case class ArrayLiter(exprList: List[Expr])(val pos: (Int, Int)) extends Rvalue {
     var arrayType: TypeST = _
+
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       var result = true
       if (exprList.nonEmpty) {
@@ -628,6 +631,7 @@ object ast {
 
   case class Call(ident: Ident, argList: List[Expr])(val pos: (Int, Int)) extends Rvalue {
     var symbolTable: SymbolTable = _
+
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       val query = st.locateST(ident.name + "()")
       if (query.isEmpty) {
@@ -913,8 +917,7 @@ object ast {
 
   @tailrec
   private def checkDivByZero(expr: ASTNode, st: SymbolTable): Boolean = expr match {
-    case IntLiter(0) =>
-      false
+    case IntLiter(0) => false
     case Ident(name) =>
       checkDivByZero(st.lookupAll(name).get._2, st)
     case _ => true
