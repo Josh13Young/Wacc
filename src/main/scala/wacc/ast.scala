@@ -229,7 +229,9 @@ object ast {
         case IntST() => lvalue.check(st)
         case CharST() => lvalue.check(st)
         // although null is not int or char, catch this error in runtime rather than here
-        case NullST() => lvalue.check(st)
+        case NullST() =>
+          WaccSemanticErrorBuilder(pos, "Can't read null")
+          false
         case _ =>
           StatError(pos, "Read", Set("int", "char"), t.toString)
           false
@@ -244,6 +246,9 @@ object ast {
       val t = expr.getType(st)
       t match {
         case ArrayST(_) => expr.check(st)
+        case PairST(NullST(), NullST()) =>
+          WaccSemanticErrorBuilder(pos, "Can't free null")
+          false
         case PairST(_, _) => expr.check(st)
         case _ =>
           StatError(pos, "Free", Set("array", "pair"), t.toString)
@@ -529,6 +534,9 @@ object ast {
   case class FstElem(lvalue: Lvalue)(val pos: (Int, Int)) extends PairElem {
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       lvalue.getType(st) match {
+        case PairST(NullST(), _) =>
+          WaccSemanticErrorBuilder(pos, "Cannot access fst of null")
+          false
         case PairST(_, _) => lvalue.check(st)
         case _ => false
       }
@@ -547,6 +555,9 @@ object ast {
   case class SndElem(lvalue: Lvalue)(val pos: (Int, Int)) extends PairElem {
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       lvalue.getType(st) match {
+        case PairST(_, NullST()) =>
+          WaccSemanticErrorBuilder(pos, "Cannot access snd of null")
+          false
         case PairST(_, _) => lvalue.check(st)
         case _ => false
       }
