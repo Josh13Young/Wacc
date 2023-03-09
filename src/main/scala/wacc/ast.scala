@@ -445,13 +445,44 @@ object ast {
   case class ArrayElem(ident: Ident, exprList: List[Expr])(val pos: (Int, Int)) extends Lvalue with Expr {
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       var result = true
-      ident.check(st)
+      if (!ident.check(st)) {
+        WaccSemanticErrorBuilder(pos, "Array " + ident.name + " is not declared")
+        return false
+      }
       for (expr <- exprList) {
         if (expr.getType(st) != IntST()) {
           WaccSemanticErrorBuilder(pos, "Array index must be of type int")
           result = false
         }
         expr.check(st)
+      }
+      // previous checks ensure that there is an entry in the symbol table
+      var exprListST: List[Expr]  = st.lookupAll(ident.name).get._2 match {
+        // Assign a placeholder expr NothingLiter to empty arrays so that there is 1 element inside
+        case ArrayLiter(List()) => List(NothingLiter()(pos))
+        case ArrayLiter(exprList) => exprList
+        case _ => List() // not reached
+      }
+      for (expr <- exprList) {
+        val index = expr match {
+          case IntLiter(value) => value
+          case _ => 0 // not reached
+        }
+        if (index >= exprListST.length || index < 0) {
+          WaccSemanticErrorBuilder(pos, "Array index out of bounds")
+          result = false
+        }
+        if (result) {
+          exprListST(index) match {
+            case Ident(name) =>
+              exprListST = st.lookupAll(name).get._2 match {
+                case ArrayLiter(List()) => List(NothingLiter()(pos))
+                case ArrayLiter(exprList) => exprList
+                case _ => List() // not reached
+              }
+            case _ => // reached
+          }
+        }
       }
       result
     }
@@ -719,6 +750,13 @@ object ast {
   }
 
   object PairLiter extends ParserBridgePos0[PairLiter]
+
+  // only used to represent empty array []
+  case class NothingLiter()(val pos: (Int, Int)) extends Expr {
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = true
+
+    def getType(st: SymbolTable)(implicit errors: SemanticError): TypeST = NullST()
+  }
 
   // <UNARY-OP>
   sealed trait UnaryOp extends Expr
