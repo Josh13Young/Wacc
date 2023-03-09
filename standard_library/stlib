@@ -121,6 +121,26 @@ begin
     return count
   end
 
+  int intHead(int[] arr) is
+    if (len(arr) == 0)
+    then
+      return 0
+    else
+      int x = arr[0] ;
+      return x
+    fi
+  end
+
+  char boolHead(char[] arr) is
+    if (len(arr) == 0)
+    then
+      return '\0'
+    else
+      char x = arr[0] ;
+      return x
+    fi
+  end
+
   skip
 
 end
