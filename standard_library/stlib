@@ -153,6 +153,15 @@ begin
     fi
   end
 
+  bool compChar(char a, char b) is
+    if a >= b
+    then
+      return true
+    else
+      return false
+    fi
+  end
+
   skip
 
 end
