@@ -20,7 +20,6 @@ begin
 
   char[] arr1 = ['a'] ;
   char[] arr2 = ['b', 'c', 'c'] ;
-  char[] arr3 = [] ;
   char ret1 = call charHead(arr1) ;
   println ret1 ;
   char ret2 = call charHead(arr2) ;

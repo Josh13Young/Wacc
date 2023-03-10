@@ -143,6 +143,16 @@ begin
     fi
   end
 
+  bool boolHead(bool[] arr) is
+    if (len(arr) == 0)
+    then
+      return false
+    else
+      bool x = arr[0] ;
+      return x
+    fi
+  end
+
   skip
 
 end
