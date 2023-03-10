@@ -10,8 +10,18 @@ import java.io.PrintWriter
 
 object Main {
   def main(args: Array[String]): Unit = {
+    val stlib = scala.io.Source.fromFile("standard_library/stlib")
+    val stlibInputList = try stlib.getLines().toList finally stlib.close()
+
     val source = scala.io.Source.fromFile(args.head)
     val inputList = try source.getLines().toList finally source.close()
+
+    //val program = test ++ stlibInputList
+
+    //println(program)
+
+    //change input to program
+
     val input = inputList.mkString("\n")
     implicit val eb: WaccErrorBuilder = new WaccErrorBuilder
     parser.parser.parse(input) match {
