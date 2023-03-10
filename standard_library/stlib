@@ -133,7 +133,7 @@ begin
     fi
   end
 
-  char boolHead(char[] arr) is
+  char charHead(char[] arr) is
     if (len(arr) == 0)
     then
       return '\0'
