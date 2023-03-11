@@ -16,13 +16,13 @@ object Main {
     val source = scala.io.Source.fromFile(args.head)
     val inputList = try source.getLines().toList finally source.close()
 
-    //val program = test ++ stlibInputList
+    val splitInputList = inputList.splitAt(inputList.indexOf("begin") + 1)
+    val program = splitInputList._1 ++ stlibInputList ++ splitInputList._2
 
-    //println(program)
+    val input = program.mkString("\n")
 
-    //change input to program
+    println(input)
 
-    val input = inputList.mkString("\n")
     implicit val eb: WaccErrorBuilder = new WaccErrorBuilder
     parser.parser.parse(input) match {
       case Success(x) =>
