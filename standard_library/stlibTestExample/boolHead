@@ -1,0 +1,28 @@
+# Output:
+# true
+# false
+#
+
+
+# Program:
+
+begin
+
+  bool boolHead(bool[] arr) is
+    if (len(arr) == 0)
+    then
+      return false
+    else
+      bool x = arr[0] ;
+      return x
+    fi
+  end
+
+  bool[] arr1 = [true] ;
+  bool[] arr2 = [false, true, true] ;
+  bool ret1 = call boolHead(arr1) ;
+  println ret1 ;
+  bool ret2 = call boolHead(arr2) ;
+  println ret2
+
+end

@@ -1,0 +1,28 @@
+# Output:
+# a
+# b
+#
+
+
+# Program:
+
+begin
+
+  char charHead(char[] arr) is
+    if (len(arr) == 0)
+    then
+      return '\0'
+    else
+      char x = arr[0] ;
+      return x
+    fi
+  end
+
+  char[] arr1 = ['a'] ;
+  char[] arr2 = ['b', 'c', 'c'] ;
+  char ret1 = call charHead(arr1) ;
+  println ret1 ;
+  char ret2 = call charHead(arr2) ;
+  println ret2
+
+end

@@ -1,0 +1,163 @@
+# wacc standard library
+
+# Program:
+
+# Mathematical utilities
+
+  int min(int a, int b) is
+    if a <= b
+    then
+      return a
+    else
+      return b
+    fi
+  end
+    
+  int max(int a, int b) is
+    if a >= b
+    then
+      return a
+    else
+      return b
+    fi
+  end
+  
+  # doesn't support negative powers
+  int pow(int a, int b) is
+    if b == 0
+    then
+      return 1
+    else
+      if b > 0
+      then
+        int c = b - 1 ;
+        int d = call pow(a, c) ;
+        int ret = a * d ;
+        return ret
+      else
+        return -1
+      fi
+    fi
+  end
+
+  int fact(int a) is
+    if a > 0
+    then
+      int b = a - 1 ;
+      int c = call fact(b) ;
+      int ret = a * c ;
+      return ret
+    else
+      return 1
+    fi
+  end
+
+  int abs(int a) is
+    if a >= 0
+    then
+      return a
+    else
+      return -a
+    fi
+  end
+
+  int mod(int a, int b) is
+    int c = call abs(a) ;
+    int d = call abs(b) ;
+    if c < d
+    then 
+      if b > 0
+      then 
+        int ret = c;
+        return ret
+      else
+        int ret = c * -1 ;
+        return ret
+      fi
+    else
+      c = c - d ;
+      int ret = call mod(c, b) ;
+      return ret
+    fi
+  end
+
+  bool isEven(int a) is
+    int b = call mod(a, 2) ;
+    if b == 0
+    then
+      return true
+    else
+      return false
+    fi
+  end
+
+  bool isOdd(int a) is
+    int b = call mod(a, 2) ;
+    if b == 0
+    then
+      return false
+    else
+      return true
+    fi
+  end
+
+  int cat() is
+    println("^   ^") ;
+    println("( o.o )") ;
+    println("> ^ <") ;
+
+    return 0
+  end
+
+# array utilities
+
+  int sum(int[] arr) is
+    int count = 0 ;
+    int i = 0 ;
+    while (i < len(arr)) do
+      count = count + arr[i] ;
+      i = i + 1
+      done ;
+    return count
+  end
+
+  int intHead(int[] arr) is
+    if (len(arr) == 0)
+    then
+      return 0
+    else
+      int x = arr[0] ;
+      return x
+    fi
+  end
+
+  char charHead(char[] arr) is
+    if (len(arr) == 0)
+    then
+      return '\0'
+    else
+      char x = arr[0] ;
+      return x
+    fi
+  end
+
+  bool boolHead(bool[] arr) is
+    if (len(arr) == 0)
+    then
+      return false
+    else
+      bool x = arr[0] ;
+      return x
+    fi
+  end
+
+  bool compChar(char a, char b) is
+    if a >= b
+    then
+      return true
+    else
+      return false
+    fi
+  end
+
+#end of stlib

@@ -1,0 +1,26 @@
+# Output:
+# 3
+# 2
+#
+
+# Program:
+
+begin
+
+  int abs(int a) is
+    if a >= 0
+    then
+      return a
+    else
+      return -a
+    fi
+  end
+
+  int a = -3 ;
+  int b = 2 ;
+  int ret = call abs(a) ;
+  println ret ;
+  int ret2 = call abs(b) ;
+  println ret2
+
+end

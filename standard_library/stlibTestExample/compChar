@@ -1,0 +1,30 @@
+# Output:
+# false
+# true
+# true
+#
+
+# Program:
+
+begin
+
+  bool compChar(char a, char b) is
+    if a >= b
+    then
+      return true
+    else
+      return false
+    fi
+  end
+
+  char a = 'a' ;
+  char b = 'g' ;
+  char c = 'a' ;
+  bool ret1 = call compChar(a, b) ;
+  println ret1 ;
+  bool ret2 = call compChar(b, a) ;
+  println ret2 ;
+  bool ret3 = call compChar(a, c) ;
+  println ret3
+
+end

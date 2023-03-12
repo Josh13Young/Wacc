@@ -1,0 +1,36 @@
+# Output:
+# 9
+# 1
+#
+
+# Program:
+
+begin
+
+  # doesn't support negative powers
+  int pow(int a, int b) is
+    if b == 0
+    then
+      return 1
+    else
+      if b > 0
+      then
+        int c = b - 1 ;
+        int d = call pow(a, c) ;
+        int ret = a * d ;
+        return ret
+      else
+        return -1
+      fi
+    fi
+  end
+
+  int a = 3 ;
+  int b = 2 ;
+  int c = 0 ;
+  int ret = call pow(a, b) ;
+  println ret ;
+  int ret2 = call pow(b, c) ;
+  println ret2
+
+end

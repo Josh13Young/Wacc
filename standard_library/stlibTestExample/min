@@ -1,0 +1,27 @@
+# Output:
+# 2
+# 2
+#
+
+# Program:
+
+begin
+
+  int min(int a, int b) is
+    if a <= b
+    then
+      return a
+    else
+      return b
+    fi
+  end
+
+  int a = 3 ;
+  int b = 2 ;
+  int c = 2 ;
+  int ret = call min(a, b) ;
+  println ret ;
+  int ret2 = call min(b, c) ;
+  println ret2
+
+end

@@ -58,5 +58,5 @@ class CodeGenTest extends AnyFlatSpec {
   "while" should "succeed and print correct output for while" in {
     assemblyRunFolder("wacc_examples/valid/while")
   }
-  
+
 }

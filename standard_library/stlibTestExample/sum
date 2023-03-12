@@ -1,0 +1,31 @@
+# Output:
+# 0
+# 6
+# 0
+#
+
+# Program:
+
+begin
+
+  int sum(int[] arr) is
+    int count = 0 ;
+    int i = 0 ;
+    while (i < len(arr)) do
+      count = count + arr[i] ;
+      i = i + 1
+      done ;
+    return count
+  end
+
+  int[] arr1 = [] ;
+  int[] arr2 = [1, 2, 3] ;
+  int[] arr3 = [2, -2] ;
+  int ret1 = call sum(arr1) ;
+  println ret1 ;
+  int ret2 = call sum(arr2) ;
+  println ret2 ;
+  int ret3 = call sum(arr3) ;
+  println ret3
+
+end

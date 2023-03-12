@@ -11,9 +11,19 @@ import java.io.PrintWriter
 
 object Main {
   def main(args: Array[String]): Unit = {
+    val stlib = scala.io.Source.fromFile("standard_library/stlib")
+    val stlibInputList = try stlib.getLines().toList finally stlib.close()
+
     val source = scala.io.Source.fromFile(args.head)
     val inputList = try source.getLines().toList finally source.close()
-    val input = inputList.mkString("\n")
+
+    val splitInputList = inputList.splitAt(inputList.indexOf("begin") + 1)
+    val program = splitInputList._1 ++ stlibInputList ++ splitInputList._2
+
+    val input = program.mkString("\n")
+
+    println(input)
+
     implicit val eb: WaccErrorBuilder = new WaccErrorBuilder
     parser.parser.parse(input) match {
       case Success(x) =>

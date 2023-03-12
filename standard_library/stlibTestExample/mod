@@ -1,0 +1,58 @@
+# Output:
+# 2
+# 9
+# 1
+# -1
+#
+
+# Program:
+
+begin
+
+  int mod(int a, int b) is
+    
+    int c = call abs(a) ;
+    int d = call abs(b) ;
+    if c < d
+    then 
+      if b > 0
+      then 
+        int ret = c;
+        return ret
+      else
+        int ret = c * -1 ;
+        return ret
+      fi
+    else
+      c = c - d ;
+      int ret = call mod(c, b) ;
+      return ret
+    fi
+  end
+
+  int abs(int a) is
+    if a >= 0
+    then
+      return a
+    else
+      return -a
+    fi
+  end
+
+  int a = 20 ;
+  int b = 3 ;
+  int c = 11 ;
+  int d = -5 ;
+  int e = 2 ;
+  int f = 5 ;
+  int g = -2 ;
+  int ret = call mod(a, b) ;
+  println ret ;
+  int ret2 = call mod(a, c) ;
+  println ret2 ;
+  int ret3 = call mod(d, e) ;
+  println ret3 ;
+  int ret4 = call mod(f, g) ;
+  println ret4
+
+end
