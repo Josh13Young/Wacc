@@ -789,8 +789,8 @@ object ast {
 
   object PairLiter extends ParserBridgePos0[PairLiter]
 
-  // only used to represent empty array []
-  case class NothingLiter()(val pos: (Int, Int)) extends Expr {
+  // only used to represent empty array [], not accessible by user
+  private case class NothingLiter()(val pos: (Int, Int)) extends Expr {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = true
 
     def getType(st: SymbolTable)(implicit errors: SemanticError): TypeST = NullST()
