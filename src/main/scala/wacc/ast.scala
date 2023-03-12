@@ -3,11 +3,12 @@ package wacc
 import parsley.Parsley
 import parsley.implicits.zipped.{Zipped2, Zipped3, Zipped4}
 import parsley.position.pos
-import wacc.frontend.STType._
 import wacc.error.WaccSemanticErrorBuilder
 import wacc.error.WaccSemanticErrorBuilder._
+import wacc.frontend.STType._
 import wacc.frontend.SymbolTable
 
+import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 
 object ast {
@@ -202,10 +203,6 @@ object ast {
 
   case class Assign(lvalue: Lvalue, rvalue: Rvalue)(val pos: (Int, Int)) extends Stat {
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
-      if (isNestedPair(lvalue) && isNestedPair(rvalue)) {
-        WaccSemanticErrorBuilder(pos, "Nested pair, unknown type, erasure")
-        return false
-      }
       if (!lvalue.check(st)) {
         return false
       }
@@ -221,17 +218,6 @@ object ast {
       }
       true
     }
-
-    private def isNestedPair(pair: ASTNode): Boolean = {
-      pair match {
-        case FstElem(FstElem(_)) => true
-        case FstElem(SndElem(_)) => true
-        case SndElem(FstElem(_)) => true
-        case SndElem(SndElem(_)) => true
-        case _ =>
-          false
-      }
-    }
   }
 
   object Assign extends ParserBridgePos2[Lvalue, Rvalue, Assign]
@@ -242,6 +228,10 @@ object ast {
       t match {
         case IntST() => lvalue.check(st)
         case CharST() => lvalue.check(st)
+        // although null is not int or char, catch this error in runtime rather than here
+        case NullST() =>
+          WaccSemanticErrorBuilder(pos, "Can't read null")
+          false
         case _ =>
           StatError(pos, "Read", Set("int", "char"), t.toString)
           false
@@ -256,6 +246,9 @@ object ast {
       val t = expr.getType(st)
       t match {
         case ArrayST(_) => expr.check(st)
+        case PairST(NullST(), NullST()) =>
+          WaccSemanticErrorBuilder(pos, "Can't free null")
+          false
         case PairST(_, _) => expr.check(st)
         case _ =>
           StatError(pos, "Free", Set("array", "pair"), t.toString)
@@ -373,6 +366,7 @@ object ast {
 
   case class While(cond: Expr, stat: List[Stat])(val pos: (Int, Int)) extends Stat {
     var symbolTable = new SymbolTable(None)
+
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       if (!cond.check(st)) {
         return false
@@ -398,6 +392,7 @@ object ast {
     var hasReturnOrExit = false
 
     var symbolTable = new SymbolTable(None)
+
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       val beginST = new SymbolTable(Option(st))
       beginST.isFunctionBody = st.isFunctionBody
@@ -458,7 +453,10 @@ object ast {
   case class ArrayElem(ident: Ident, exprList: List[Expr])(val pos: (Int, Int)) extends Lvalue with Expr {
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       var result = true
-      ident.check(st)
+      if (!ident.check(st)) {
+        WaccSemanticErrorBuilder(pos, "Array " + ident.name + " is not declared")
+        return false
+      }
       for (expr <- exprList) {
         if (expr.getType(st) != IntST()) {
           WaccSemanticErrorBuilder(pos, "Array index must be of type int")
@@ -466,7 +464,49 @@ object ast {
         }
         expr.check(st)
       }
+      // previous checks ensure that there is an entry in the symbol table
+      var exprListST: List[Expr] = findExprList(st.lookupAll(ident.name).get._2, st)
+      for (expr <- exprList) {
+        val index = expr match {
+          case IntLiter(value) => value
+          case _ => 0 // not reached
+        }
+        if (index >= exprListST.length || index < 0) {
+          WaccSemanticErrorBuilder(pos, "Array index out of bounds")
+          result = false
+        }
+        if (result) {
+          exprListST(index) match {
+            case Ident(name) =>
+              exprListST = findExprList(st.lookupAll(name).get._2, st)
+            case _ => // reached
+          }
+        }
+      }
       result
+    }
+
+    @tailrec
+    private def findExprList(node: ASTNode, st: SymbolTable): List[Expr] = node match {
+      case ArrayLiter(List()) => List(NothingLiter()(pos))
+      case ArrayLiter(exprList) => exprList
+      case FstElem(Ident(name)) =>
+        st.lookupAll(name).get._2 match {
+          case NewPair(Ident(fst), _) =>
+            findExprList(st.lookupAll(fst).get._2, st)
+          case NewPair(fst, _) =>
+            findExprList(fst, st)
+          case _ => List() // not reached
+        }
+      case SndElem(Ident(name)) =>
+        st.lookupAll(name).get._2 match {
+          case NewPair(_, Ident(snd)) =>
+            findExprList(st.lookupAll(snd).get._2, st)
+          case NewPair(_, snd) =>
+            findExprList(snd, st)
+          case _ => List() // not reached
+        }
+      case _ => List() // not reached
     }
 
     override def getType(st: SymbolTable)(implicit errors: SemanticError): TypeST = {
@@ -496,6 +536,9 @@ object ast {
   case class FstElem(lvalue: Lvalue)(val pos: (Int, Int)) extends PairElem {
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       lvalue.getType(st) match {
+        case PairST(NullST(), _) =>
+          WaccSemanticErrorBuilder(pos, "Cannot access fst of null")
+          false
         case PairST(_, _) => lvalue.check(st)
         case _ => false
       }
@@ -514,6 +557,9 @@ object ast {
   case class SndElem(lvalue: Lvalue)(val pos: (Int, Int)) extends PairElem {
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       lvalue.getType(st) match {
+        case PairST(_, NullST()) =>
+          WaccSemanticErrorBuilder(pos, "Cannot access snd of null")
+          false
         case PairST(_, _) => lvalue.check(st)
         case _ => false
       }
@@ -539,6 +585,7 @@ object ast {
   // <ARRAY-LITER>
   case class ArrayLiter(exprList: List[Expr])(val pos: (Int, Int)) extends Rvalue {
     var arrayType: TypeST = _
+
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       var result = true
       if (exprList.nonEmpty) {
@@ -558,8 +605,8 @@ object ast {
 
     override def getType(st: SymbolTable)(implicit errors: SemanticError): TypeST = {
       if (exprList.isEmpty) {
-        arrayType = AnyST()
-        ArrayST(AnyST())
+        arrayType = NullST()
+        ArrayST(NullST())
       } else {
         val exprType = exprList.head.getType(st)
         arrayType = exprType
@@ -584,6 +631,7 @@ object ast {
 
   case class Call(ident: Ident, argList: List[Expr])(val pos: (Int, Int)) extends Rvalue {
     var symbolTable: SymbolTable = _
+
     override def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       val query = st.locateST(ident.name + "()")
       if (query.isEmpty) {
@@ -686,14 +734,6 @@ object ast {
 
   object PairType extends ParserBridgePos2[Type, Type, PairType]
 
-  case class NestedPairType()(val pos: (Int, Int)) extends Type {
-    override def check(st: SymbolTable): Boolean = true
-
-    override def getType(st: SymbolTable): TypeST = PairST(AnyST(), AnyST())
-  }
-
-  object NestedPairType extends ParserBridgePos0[NestedPairType]
-
   // <EXPR>
   sealed trait Expr extends Rvalue {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean
@@ -736,10 +776,17 @@ object ast {
   case class PairLiter()(val pos: (Int, Int)) extends Expr {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = true
 
-    def getType(st: SymbolTable)(implicit errors: SemanticError): TypeST = PairST(AnyST(), AnyST())
+    def getType(st: SymbolTable)(implicit errors: SemanticError): TypeST = PairST(NullST(), NullST())
   }
 
   object PairLiter extends ParserBridgePos0[PairLiter]
+
+  // only used to represent empty array []
+  case class NothingLiter()(val pos: (Int, Int)) extends Expr {
+    def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = true
+
+    def getType(st: SymbolTable)(implicit errors: SemanticError): TypeST = NullST()
+  }
 
   // <UNARY-OP>
   sealed trait UnaryOp extends Expr
@@ -854,6 +901,10 @@ object ast {
       if (!expr1.check(st) || !expr2.check(st)) return false
       val t1 = expr1.getType(st)
       val t2 = expr2.getType(st)
+      if (!checkDivByZero(expr2, st)) {
+        WaccSemanticErrorBuilder(pos, "Divide by zero error")
+        return false
+      }
       if (t1 != IntST() || t2 != IntST()) {
         BinaryOperatorError(pos, "/", Set("int"), t1.toString, t2.toString)
         return false
@@ -864,12 +915,24 @@ object ast {
     def getType(st: SymbolTable)(implicit errors: SemanticError): TypeST = IntST()
   }
 
+  @tailrec
+  private def checkDivByZero(expr: ASTNode, st: SymbolTable): Boolean = expr match {
+    case IntLiter(0) => false
+    case Ident(name) =>
+      checkDivByZero(st.lookupAll(name).get._2, st)
+    case _ => true
+  }
+
   object Div extends ParserBridgePos2[Expr, Expr, Div]
 
   case class Mod(expr1: Expr, expr2: Expr)(val pos: (Int, Int)) extends BinaryOp {
     def check(st: SymbolTable)(implicit errors: SemanticError): Boolean = {
       val t1 = expr1.getType(st)
       val t2 = expr2.getType(st)
+      if (!checkDivByZero(expr2, st)) {
+        WaccSemanticErrorBuilder(pos, "Mod by zero error")
+        return false
+      }
       if (t1 != IntST() || t2 != IntST()) {
         BinaryOperatorError(pos, "%", Set("int"), t1.toString, t2.toString)
         return false
