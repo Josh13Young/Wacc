@@ -3,7 +3,6 @@
 # Program:
 
 # Mathematical utilities
-begin
   int min(int a, int b) is
     if a <= b
     then
@@ -62,7 +61,7 @@ begin
   end
 
   bool isEven(int a) is
-    int b = call mod(a, 2) ;
+    int b = a % 2 ;
     if b == 0
     then
       return true
@@ -72,7 +71,7 @@ begin
   end
 
   bool isOdd(int a) is
-    int b = call mod(a, 2) ;
+    int b = a % 2 ;
     if b == 0
     then
       return false
@@ -139,6 +138,4 @@ begin
       return false
     fi
   end
-  skip
-end
 #end of stlib

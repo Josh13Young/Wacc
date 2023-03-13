@@ -19,12 +19,11 @@ object Main {
     val inputList = try source.getLines().toList finally source.close()
 
     val input = inputList.mkString("\n")
-    var functions = List[Func]()
+    var functions = List.empty[Func]
 
     implicit val eb: WaccErrorBuilder = new WaccErrorBuilder
-    parser.parser.parse(stlibInputList.mkString("\n")) match {
-      case Success(x) =>
-        functions = x.functions
+    parser.funcParser.parse(stlibInputList.mkString("\n")) match {
+      case Success(x) => functions = x
       case _ => // not reached
     }
     parser.parser.parse(input) match {

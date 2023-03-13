@@ -70,4 +70,5 @@ object parser {
   private lazy val pairLiter = PairLiter <# "null"
 
   val parser: Parsley[Program] = fully(program)
+  val funcParser: Parsley[List[Func]] = fully(many(func))
 }

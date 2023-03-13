@@ -4,9 +4,8 @@ import wacc.backend.Instruction._
 
 object Peephole {
 
-  def optimise(instructions: List[Instruction]): List[Instruction] = {
+  def optimise(instructions: List[Instruction]): List[Instruction] =
     removeBinOpPushPop(removeMovAfterMov(removeMovAfterLdr(removeMovToRegZero(removeZeroStackPointer(removeLdrAfterStr(instructions))))))
-  }
 
   /*
   Remove the following push / pop wrapped around:
@@ -91,7 +90,7 @@ object Peephole {
       case Nil => Nil
       case Load(dest, op) :: xs =>
         xs.head match {
-          case Move (dest2, op2) =>
+          case Move(dest2, op2) =>
             op2 match {
               case reg: Register =>
                 if (equalReg(dest, reg)) {
