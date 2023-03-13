@@ -1,7 +1,7 @@
 # Output:
-# ^   ^
+#  ^   ^
 # ( o.o )
-# > ^ <
+#  > ^ <
 # 0
 #
 
@@ -11,9 +11,9 @@
 begin
 
   int cat() is
-    println("^   ^") ;
+    println(" ^   ^") ;
     println("( o.o )") ;
-    println("> ^ <") ;
+    println(" > ^ <") ;
 
     return 0
   end
