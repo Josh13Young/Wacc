@@ -11,41 +11,12 @@
 begin
 
   bool isOdd(int a) is
-    int b = call mod(a, 2) ;
+    int b = a % 2 ;
     if b == 0
     then
       return false
     else
       return true
-    fi
-  end
-
-  int mod(int a, int b) is
-    int c = call abs(a) ;
-    int d = call abs(b) ;
-    if c < d
-    then 
-      if b > 0
-      then 
-        int ret = c;
-        return ret
-      else
-        int ret = c * -1 ;
-        return ret
-      fi
-    else
-      c = c - d ;
-      int ret = call mod(c, b) ;
-      return ret
-    fi
-  end
-
-  int abs(int a) is
-    if a >= 0
-    then
-      return a
-    else
-      return -a
     fi
   end
 
