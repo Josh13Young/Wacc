@@ -46,6 +46,11 @@ codegen-test:
   script:
     - sbt "testOnly wacc.CodeGenTest"
 
+stlib-test-job:
+  stage: test
+  script:
+    - sbt "testOnly wacc.StLibTest"
+
 optimise-test:
   tags:
     - group32
