@@ -466,10 +466,10 @@ object ast {
         expr.check(st)
       }
       // previous checks ensure that there is an entry in the symbol table
-      var exprListST: List[Expr] = findExprList(st.lookupAll(ident.name).get._2, st).get
-      if (exprListST.isEmpty) {
-        // if empty list, then array is a param and accessed within the function
-        return true
+      var exprListST: List[Expr] = List.empty
+      findExprList(st.lookupAll(ident.name).get._2, st) match {
+        case Some(value) => exprListST = value
+        case None => return true
       }
       for (expr <- exprList) {
         val index = expr match {
@@ -486,10 +486,9 @@ object ast {
         if (result) {
           exprListST(index) match {
             case Ident(name) =>
-              exprListST = findExprList(st.lookupAll(name).get._2, st).get
+              exprListST = findExprList(st.lookupAll(name).get._2, st).getOrElse(List.empty)
             case _ => // reached
           }
-
         }
       }
       result
@@ -505,7 +504,7 @@ object ast {
             findExprList(st.lookupAll(fst).get._2, st)
           case NewPair(fst, _) =>
             findExprList(fst, st)
-          case _ => None // NOT REACHED
+          case _ => None
         }
       case SndElem(Ident(name)) =>
         st.lookupAll(name).get._2 match {
@@ -513,13 +512,13 @@ object ast {
             findExprList(st.lookupAll(snd).get._2, st)
           case NewPair(_, snd) =>
             findExprList(snd, st)
-          case _ => None // NOT REACHED
+          case _ => None
         }
       // only have this ast inside a function where the array is a param, can't be checked
-      case Param(_, _) => Some(List())
+      case Param(_, _) => None
       // pair inside an array, nothing to do with array out of bounds
-      case NewPair(_, _) => Some(List())
-      case _ => None // NOT REACHED
+      case NewPair(_, _) => None
+      case _ => None // invalid stuff, not caught here
     }
 
     override def getType(st: SymbolTable)(implicit errors: SemanticError): TypeST = {
