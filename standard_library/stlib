@@ -3,7 +3,7 @@
 # Program:
 
 # Mathematical utilities
-
+begin
   int min(int a, int b) is
     if a <= b
     then
@@ -159,5 +159,6 @@
       return false
     fi
   end
-
+  skip
+end
 #end of stlib

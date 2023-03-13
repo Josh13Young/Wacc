@@ -58,7 +58,7 @@ object ast {
 
   // <PROGRAM>
   // Since Stat; Stat is valid, we represent it as a list of Stat
-  case class Program(functions: List[Func], stat: List[Stat])(val pos: (Int, Int)) extends ASTNode {
+  case class Program(var functions: List[Func], stat: List[Stat])(val pos: (Int, Int)) extends ASTNode {
     def check(st: SymbolTable)(implicit err: SemanticError): Boolean = {
       var result = true
       val funSTs = new ListBuffer[SymbolTable]()
@@ -474,6 +474,8 @@ object ast {
       for (expr <- exprList) {
         val index = expr match {
           case IntLiter(value) => value
+          case Ident(_) => 0 // don't check ident
+          case ArrayElem(_, _) => 0 // don't check nested array elem (involves ident)
           case _ => MaxValue // not reached
         }
         // we have the array defined, so we can check if the index is out of bounds properly
@@ -513,7 +515,10 @@ object ast {
             findExprList(snd, st)
           case _ => None // NOT REACHED
         }
+      // only have this ast inside a function where the array is a param, can't be checked
       case Param(_, _) => Some(List())
+      // pair inside an array, nothing to do with array out of bounds
+      case NewPair(_, _) => Some(List())
       case _ => None // NOT REACHED
     }
 

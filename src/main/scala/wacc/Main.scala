@@ -1,6 +1,7 @@
 package wacc
 
 import parsley.{Failure, Success}
+import wacc.ast.Func
 import wacc.backend.CodeGenerator
 import wacc.backend.CodeGenerator.{generate, generateString}
 import wacc.backend.Peephole.optimise
@@ -17,19 +18,21 @@ object Main {
     val source = scala.io.Source.fromFile(args.head)
     val inputList = try source.getLines().toList finally source.close()
 
-    val splitInputList = inputList.splitAt(inputList.indexOf("begin") + 1)
-    val program = splitInputList._1 ++ stlibInputList ++ splitInputList._2
-
-    val input = program.mkString("\n")
-
-    println(input)
+    val input = inputList.mkString("\n")
+    var functions = List[Func]()
 
     implicit val eb: WaccErrorBuilder = new WaccErrorBuilder
+    parser.parser.parse(stlibInputList.mkString("\n")) match {
+      case Success(x) =>
+        functions = x.functions
+      case _ => // not reached
+    }
     parser.parser.parse(input) match {
       case Success(x) =>
         val seb = new wacc.error.WaccSemanticErrorBuilder.SemanticError
         seb.program = inputList
         val st = new SymbolTable(None)
+        x.functions ++= functions
         if (x.check(st)(seb)) {
           println("Program is semantically correct")
           CodeGenerator.currST = st
