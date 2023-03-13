@@ -102,9 +102,9 @@ begin
   end
 
   int cat() is
-    println("^   ^") ;
+    println(" ^   ^") ;
     println("( o.o )") ;
-    println("> ^ <") ;
+    println(" > ^ <") ;
 
     return 0
   end
