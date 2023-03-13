@@ -47,7 +47,11 @@ codegen-test:
     - sbt "testOnly wacc.CodeGenTest"
 
 stlib-test-job:
+  tags:
+    - group32
   stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
   script:
     - sbt "testOnly wacc.StLibTest"
 
