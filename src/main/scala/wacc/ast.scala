@@ -927,11 +927,8 @@ object ast {
     def getType(st: SymbolTable)(implicit errors: SemanticError): TypeST = IntST()
   }
 
-  @tailrec
   private def checkDivByZero(expr: ASTNode, st: SymbolTable): Boolean = expr match {
     case IntLiter(0) => false
-    case Ident(name) =>
-      checkDivByZero(st.lookupAll(name).get._2, st)
     case _ => true
   }
 

@@ -126,9 +126,6 @@ object DataSeg {
     ListBuffer(
       Label("free_pair"),
       Push(List(LinkRegister())),
-      Move(Reg(8), Reg(0)),
-      Compare(Reg(8), Immediate(FALSE)),
-      BranchLinkWithCond(Equal, "null_error"),
       Load(Reg(0), RegOffset(Reg(8), Immediate(0))),
       BranchLink("free"),
       Load(Reg(0), RegOffset(Reg(8), Immediate(WORD))),
@@ -206,16 +203,6 @@ object DataSeg {
       BranchLink("printf"),
       Move(Reg(0), Immediate(0)),
       BranchLink("fflush"),
-      Move(Reg(0), Immediate(RUNTIME_ERROR)),
-      BranchLink("exit")
-    )
-  }
-
-  def nullError(): ListBuffer[Instruction] = {
-    ListBuffer(
-      Label("null_error"),
-      Load(Reg(0), LabelJump(addStrFun("fatal error: null pointer"))),
-      BranchLink("print_str"),
       Move(Reg(0), Immediate(RUNTIME_ERROR)),
       BranchLink("exit")
     )

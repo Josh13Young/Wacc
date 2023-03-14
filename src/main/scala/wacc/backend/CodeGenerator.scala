@@ -185,8 +185,6 @@ object CodeGenerator {
             lookUpAllGetType(name) match {
               case PairST(_, _) =>
                 nonMainFunc += ("free_pair" -> freePair())
-                nonMainFunc += ("null_error" -> nullError())
-                nonMainFunc += ("print_str" -> printString())
                 val freeGen = exprGen(expr, 8) ++ ListBuffer(Move(Reg(0), Reg(8)))
                 val free = ListBuffer(BranchLink("free_pair"))
                 freeGen ++ free
@@ -398,11 +396,7 @@ object CodeGenerator {
     val result = ListBuffer[Instruction]()
     lv match {
       case Ident(name) =>
-        nonMainFunc += ("null_error" -> nullError())
-        nonMainFunc += ("print_str" -> printString())
         result += Load(Reg(8), getVar(name).get)
-        result += Compare(Reg(8), Immediate(0))
-        result += BranchLinkWithCond(Equal, "null_error")
       case FstElem(lvalue) =>
         result ++= lvalueGen(lvalue)
         result += Load(Reg(8), RegOffset(Reg(8), Immediate(0)))
